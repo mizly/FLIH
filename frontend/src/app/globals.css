@@ -42,6 +42,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .map-top { position: absolute; z-index: 5; left: 50%; top: 25px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; pointer-events: none; }
 .map-campus, .map-demo { border: 1px solid rgba(32,33,36,.13); border-radius: 99px; background: rgba(255,254,250,.9); padding: 8px 13px; box-shadow: 0 5px 18px rgba(31,33,36,.08); backdrop-filter: blur(8px); font-size: 14px; display: flex; align-items: center; gap: 5px; }
 .map-demo { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+.map-view-toggle { display: flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid rgba(32,33,36,.13); border-radius: 99px; background: rgba(255,254,250,.92); box-shadow: 0 5px 18px rgba(31,33,36,.08); backdrop-filter: blur(8px); pointer-events: auto; }
+.map-view-toggle button { display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 99px; padding: 6px 10px; color: var(--muted); background: transparent; font-size: 13px; font-weight: 700; }
+.map-view-toggle button.active { color: white; background: var(--ink); }
+.map-view-toggle button:hover:not(.active) { color: var(--ink); background: var(--cream); }
 .map-art { position: relative; overflow: hidden; background: var(--cream); }
 .campus-svg { width: 100%; height: 100%; display: block; background: var(--cream); cursor: grab; touch-action: none; user-select: none; }
 .campus-svg:active, .campus-svg.is-dragging, .campus-svg.endpoint-drag-active { cursor: grabbing; }
@@ -57,6 +61,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .pickup-route { stroke: #7d8792; stroke-width: 7; stroke-dasharray: 9 14; opacity: .5; }
 .destination-route { stroke: var(--blue); stroke-width: 10; stroke-dasharray: 20 13; animation: route-move 18s linear infinite; }
 @keyframes route-move { to { stroke-dashoffset: -300; } }
+.room-model-anchor { cursor: pointer; }
+.room-model-anchor-ring { fill: rgba(237,77,77,.15); stroke: var(--accent); stroke-width: 3; animation: room-anchor-pulse 1.8s ease-in-out infinite; }
+.room-model-anchor-dot { fill: var(--accent); stroke: white; stroke-width: 4; }
+.room-model-anchor-label { fill: white; stroke: none; font-family: Arial, sans-serif; font-size: 12px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+@keyframes room-anchor-pulse { 0%, 100% { opacity: .65; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.1); } }
 .map-stop { cursor: pointer; }
 .drop-target-halo { fill: rgba(255, 246, 182, .8); stroke: var(--blue); stroke-width: 3; opacity: 0; transform-box: fill-box; transform-origin: center; pointer-events: none; }
 .endpoint-drag-active .map-stop { pointer-events: none; }
@@ -88,6 +97,23 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .map-compass span { position: absolute; top: 3px; right: 8px; font-size: 11px; }
 .map-controls { position: absolute; right: 24px; bottom: 24px; display: flex; flex-direction: column; gap: 8px; }
 .map-note { position: absolute; left: 91px; bottom: 33px; padding: 7px 12px; border-radius: 99px; background: rgba(255,254,250,.94); box-shadow: 0 6px 20px rgba(31,33,36,.1); font-size: 14px; }
+.room-viewer { position: absolute; inset: 0; overflow: hidden; background: #dfe8e7; }
+.room-viewer-canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.room-viewer-heading { position: absolute; z-index: 2; top: 24px; left: 24px; right: 24px; display: flex; align-items: start; justify-content: space-between; pointer-events: none; }
+.room-viewer-title, .room-viewer-heading .sketch-button, .room-viewer-anchor, .room-viewer-status { border: 1px solid rgba(32,33,36,.13); background: rgba(255,254,250,.9); box-shadow: 0 7px 22px rgba(31,33,36,.12); backdrop-filter: blur(9px); }
+.room-viewer-title { display: flex; align-items: center; gap: 9px; padding: 10px 14px; border-radius: 15px; }
+.room-viewer-title > svg { color: var(--blue); }
+.room-viewer-title div { display: grid; gap: 1px; }
+.room-viewer-title strong { font-size: 18px; line-height: 1; }
+.room-viewer-title span { color: var(--muted); font-size: 12px; }
+.room-viewer-heading .sketch-button { pointer-events: auto; color: var(--ink); }
+.room-viewer-anchor { position: absolute; z-index: 2; left: 24px; bottom: 27px; display: flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 99px; font-size: 14px; }
+.room-viewer-anchor small { color: var(--muted); margin-left: 5px; }
+.room-anchor-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(237,77,77,.18); }
+.room-viewer-status { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 9px; padding: 14px 17px; border-radius: 15px; font-size: 16px; }
+.room-viewer-error { color: #a33232; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .sketch-button { border: 0; border-radius: 13px; min-height: 46px; padding: 9px 17px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; transition: transform .15s, box-shadow .15s; }
 .sketch-button:hover:not(:disabled) { transform: translateY(-1px); }
@@ -166,9 +192,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
   .brand svg { width: 38px; height: 35px; }
   .map-top { top: 73px; width: max-content; }
   .map-demo { display: none; }
+  .map-view-toggle { position: absolute; top: 47px; left: 50%; transform: translateX(-50%); }
   .map-controls { right: 12px; bottom: calc(55dvh + 20px); }
   .map-compass { left: 12px; bottom: 25px; }
   .map-note { left: 76px; bottom: 32px; }
+  .room-viewer-heading { top: 18px; left: 12px; right: 12px; }
+  .room-viewer-anchor { left: 12px; right: 12px; bottom: 18px; justify-content: center; font-size: 13px; }
+  .room-viewer-anchor small { display: none; }
   .wizard-overlay { padding: 12px; align-items: end; }
   .wizard-card { max-height: calc(100dvh - 24px); border-radius: 25px; padding: 22px 19px 23px; }
   .wizard-fly { height: 105px; }
