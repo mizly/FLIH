@@ -7,6 +7,8 @@ import { placeName, places } from "@/lib/campus";
 import { CampusMap } from "./campus-map";
 import { Fly } from "./fly";
 import { Button } from "./ui/button";
+import Link from "next/link";
+import { Gamepad2 } from "lucide-react";
 
 type WizardStep = "intro" | "pickup" | "destination" | "done";
 
@@ -158,9 +160,12 @@ export function Dashboard() {
         <button className="brand" type="button" onClick={restart} aria-label="Start over">
           <Fly small /><span>FLIH<span className="brand-dot">.</span></span>
         </button>
-        <div className="live-status" aria-live="polite">
-          <span className={offline ? "status-dot offline" : "status-dot"} />
-          {connectionError ? "Reconnecting" : data ? "Live" : "Connecting"}
+        <div className="header-actions">
+          <Link className="control-link" href="/control"><Gamepad2 size={18} /> Drive</Link>
+          <div className="live-status" aria-live="polite">
+            <span className={offline ? "status-dot offline" : "status-dot"} />
+            {connectionError ? "Reconnecting" : data ? "Live" : "Connecting"}
+          </div>
         </div>
       </header>
 
