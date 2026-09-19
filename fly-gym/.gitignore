@@ -23,7 +23,6 @@ _pending_deletion/
 backups/
 checkpoints/
 eval_data/
-loss/
 performance_results/
 
 # Result figures: ignore stray CSV/PNG dumps, keep the final published ones
@@ -35,6 +34,11 @@ performance_results/
 !bar_*.png
 !spl_*.png
 !direction_tuning_plot.png
+
+# Keep the generated loss artifacts in Git.
+!loss/
+!loss/**/*.csv
+!loss/**/*.png
 
 # Connectome data: ignore big raw edge lists, keep small metadata + scripts.
 # This block must come AFTER the generic *.csv rule above -- gitignore resolves
@@ -50,3 +54,4 @@ connectomes/**/*.py
 !connectomes/ws_small_world/generate_ws_network_new.py
 connectomes/c.elegans connectome/
 connectomes/drosophila larva connectome/
+checkpoints/
