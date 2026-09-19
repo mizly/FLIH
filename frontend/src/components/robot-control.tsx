@@ -18,6 +18,7 @@ export function RobotControl() {
   const [robotConnected, setRobotConnected] = useState(false);
   const [controllerAvailable, setControllerAvailable] = useState(true);
   const [message, setMessage] = useState("Connecting to control server…");
+  const enabled = connection === "connected" && robotConnected && controllerAvailable;
 
   const sendDrive = useCallback(() => {
     const socket = socketRef.current;
@@ -92,7 +93,7 @@ export function RobotControl() {
   useEffect(() => {
     const keyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase() as Direction;
-      if (!directionKeys.has(key) || event.repeat) return;
+      if (!directionKeys.has(key) || event.repeat || !enabled) return;
       event.preventDefault();
       setKey(key, true);
     };
@@ -112,7 +113,11 @@ export function RobotControl() {
       window.removeEventListener("blur", releaseAll);
       document.removeEventListener("visibilitychange", releaseAll);
     };
-  }, [releaseAll, setKey]);
+  }, [enabled, releaseAll, setKey]);
+
+  useEffect(() => {
+    if (!enabled) releaseAll();
+  }, [enabled, releaseAll]);
 
   useEffect(() => {
     if (pressed.size === 0) return;
@@ -120,7 +125,6 @@ export function RobotControl() {
     return () => clearInterval(timer);
   }, [pressed, sendDrive]);
 
-  const enabled = connection === "connected" && robotConnected && controllerAvailable;
   const keyProps = (key: Direction) => ({
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
       event.currentTarget.setPointerCapture(event.pointerId);

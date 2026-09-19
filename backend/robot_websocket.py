@@ -57,6 +57,7 @@ def on_message(socket: websocket.WebSocketApp, raw: str) -> None:
         forward = message.get("forward")
         turn = message.get("turn")
         if forward not in (-1, 0, 1) or turn not in (-1, 0, 1):
+            stop()
             return
         apply_drive(forward, turn)
         socket.send(json.dumps({"type": "ack", "sequence": message.get("sequence")}))
