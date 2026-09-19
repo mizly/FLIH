@@ -22,9 +22,10 @@
 <joint name="rear_right_hinge" axis="0 1 0" damping="0.001" armature="0.002"/>
 <geom name="rear_right_wheel_geom" type="cylinder" size="0.03375 0.01325" euler="90 0 0" material="matwheel" mass="0.1" group="1" friction="1 0.005 0.0001" contype="4" conaffinity="1"/>
 </body>
-<camera name="cam_left" pos="0.103 0.035 0.065" xyaxes="0.4959134149 -0.8683719738 0.0000000000 0.0756836044 0.0432217020 0.9961946981" fovy="42.61"/>
-<camera name="cam_right" pos="0.103 -0.035 0.065" xyaxes="-0.4959134149 -0.8683719738 0.0000000000 0.0756836044 -0.0432217020 0.9961946981" fovy="42.61"/>
-<site name="lidar" pos="0 0 0.095" size="0.01" rgba="1 0.7 0 1"/>
+<!-- Image reference: camera centers z=175 mm, LiDAR scan plane z=210 mm. -->
+<camera name="cam_left" pos="0.103 0.035 0.075" xyaxes="0.4959134149 -0.8683719738 0.0000000000 0.0756836044 0.0432217020 0.9961946981" fovy="42.61"/>
+<camera name="cam_right" pos="0.103 -0.035 0.075" xyaxes="-0.4959134149 -0.8683719738 0.0000000000 0.0756836044 -0.0432217020 0.9961946981" fovy="42.61"/>
+<site name="lidar" pos="0 0 0.110" size="0.01" rgba="1 0.7 0 1"/>
 </body>
 </worldbody>
 <!-- Yahboom L-type 520, 12 V, 40:1: 300 RPM output, 4.4 kgf cm rated torque.

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import {
   Activity,
@@ -15,6 +16,8 @@ import {
   Terminal,
 } from "lucide-react";
 import type { TrainingResponse } from "@/lib/training-types";
+
+const TrainingScene = dynamic(() => import("./training-scene"), { ssr: false });
 
 const number = (value: number) => value.toLocaleString();
 const decimal = (value: number | null | undefined, digits = 4) =>
@@ -317,6 +320,12 @@ export default function TrainingDashboard() {
                 Training stopped: {run.error}
               </div>
             )}
+            <TrainingScene
+              key={run.run_id}
+              preview={run.preview}
+              live={!!live}
+              phase={run.phase}
+            />
             <div className="training-metrics">
               {[
                 [

@@ -28,7 +28,7 @@ class RobotGeometryTests(unittest.TestCase):
                 "rear_left_wheel": [-.124, .108, .03375], "rear_right_wheel": [-.124, -.108, .03375],
             }.items():
                 np.testing.assert_allclose(env.data.body(name).xpos, expected, atol=1e-8)
-            np.testing.assert_allclose(env.data.site("lidar").xpos, [0, 0, .195])
+            np.testing.assert_allclose(env.data.site("lidar").xpos, [0, 0, .210])
             self.assertEqual(env.model.nu, 4)
             self.assertGreater(ROBOT_RADIUS, .19)
 
@@ -36,7 +36,7 @@ class RobotGeometryTests(unittest.TestCase):
         env = self.make_env()
         for name, side in (("left", 1), ("right", -1)):
             camera = env.data.camera(f"cam_{name}")
-            np.testing.assert_allclose(camera.xpos, [.103, side * .035, .165])
+            np.testing.assert_allclose(camera.xpos, [.103, side * .035, .175])
             forward = -camera.xmat.reshape(3, 3)[:, 2]
             self.assertAlmostEqual(math.degrees(math.atan2(forward[1], forward[0])), side * 29.73, places=5)
             self.assertAlmostEqual(math.degrees(math.asin(forward[2])), -5, places=5)

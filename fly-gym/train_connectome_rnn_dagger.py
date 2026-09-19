@@ -651,6 +651,7 @@ def rollout_and_collect_balanced(
     """
     agent.eval()
     n_envs = len(envs)
+    preview_episodes = [0] * n_envs
     need_student = beta < 1.0
 
     total_chunks = {'straight': 0, 'turn': 0, 'collision': 0, 'pre_collision': 0, 'start': 0}
@@ -731,6 +732,9 @@ def rollout_and_collect_balanced(
                 telemetry.advance(1)
             obs_list[i] = obs
             steps[i] += 1
+            if telemetry and i == 0:
+                telemetry.preview(envs[i], preview_episodes[i], steps[i],
+                                  obs["sensors"]["collision"])
             # Only append non-terminal observations to keep raw_obs_buf aligned
             # with proc_obs_buf and teacher_act_buf
             if not done_flags[i] and not trunc_flags[i]:
@@ -888,6 +892,7 @@ def rollout_and_collect_balanced(
             noise_steps[i] = 0
             noise_vals[i] = np.zeros(2, dtype=np.float32)
             obs_list[i], _ = envs[i].reset()
+            preview_episodes[i] += 1
             teachers[i].reset()
             vision_states_left[i] = None
             vision_states_right[i] = None
@@ -914,6 +919,7 @@ def rollout_and_collect_balanced(
                 noise_steps[i] = 0
                 noise_vals[i] = np.zeros(2, dtype=np.float32)
                 obs_list[i], _ = envs[i].reset()
+                preview_episodes[i] += 1
                 teachers[i].reset()
                 vision_states_left[i] = None
                 vision_states_right[i] = None

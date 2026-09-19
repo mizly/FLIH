@@ -121,3 +121,81 @@ test("training dashboard desktop screenshot", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText("Live training");
   await page.screenshot({ path: "test-results/training-dashboard.png" });
 });
+
+test("sampled 3D preview updates, pauses, orbits and holds during optimization", async ({
+  page,
+}) => {
+  let run = fixture();
+  run.phase = "collecting";
+  run.preview = {
+    episode: "2:1",
+    environment: 0,
+    captured_at: Date.now() / 1000,
+    step: 150,
+    simulation_seconds: 3,
+    arena: 7,
+    goal: [4, 3],
+    goal_radius: 0.35,
+    pose: { x: -1, y: -2, yaw: 0.6 },
+    collision: false,
+    trail: [
+      [-4, -3],
+      [-3, -2.5],
+      [-2, -2.4],
+      [-1, -2],
+    ],
+    obstacles: [
+      { x: 2, y: 1, radius: 0.4, height: 1.6 },
+      { x: -3, y: 1, radius: 0.4, height: 1.6 },
+      { x: 3, y: -3, radius: 0.4, height: 1.6 },
+    ],
+  };
+  await page.route("**/api/training", (route) =>
+    route.fulfill({ json: { run, stale: false } }),
+  );
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.goto("/training");
+  const scene = page.getByRole("img", { name: /3D training arena/ });
+  await expect(scene).toBeVisible();
+  await expect(
+    page.getByText("Live · sampled view", { exact: true }),
+  ).toBeVisible();
+  const pixels = () =>
+    scene.evaluate((el) => (el as HTMLCanvasElement).toDataURL());
+  const original = await pixels();
+  await page.getByRole("slider", { name: "Orbit camera" }).fill("1.2");
+  await expect.poll(pixels).not.toBe(original);
+  await page.getByRole("button", { name: "Pause preview" }).click();
+  const paused = await pixels();
+  run = {
+    ...run,
+    preview: {
+      ...run.preview!,
+      step: 250,
+      captured_at: Date.now() / 1000,
+      pose: { x: 3, y: 2, yaw: 1 },
+    },
+    environment_steps: 25000,
+  };
+  await expect(page.getByText("25,000", { exact: true })).toBeVisible();
+  expect(await pixels()).toBe(paused);
+  await expect(page.locator(".training-scene-readout")).toContainText(
+    "STEP 150",
+  );
+  await page.getByRole("button", { name: "Resume preview" }).click();
+  await expect(page.locator(".training-scene-readout")).toContainText(
+    "STEP 250",
+  );
+  await expect.poll(pixels).not.toBe(paused);
+  run = { ...run, phase: "optimizing" };
+  await expect(
+    page.getByText("Optimizing · holding last scene", { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: "test-results/training-3d-preview.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page
+      .locator(".training-shell")
+      .evaluate((el) => el.scrollWidth > el.clientWidth),
+  ).toBe(false);
+});

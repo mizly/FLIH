@@ -93,7 +93,7 @@ LIDAR_CONFIG = LidarConfig()
 def training_robot_metadata():
     return {
         "geometry_xml": ROBOT_XML.read_text(),
-        "layout_source": "wheel_positions.pdf (revised layout)",
+        "layout_source": "wheel_positions.png (updated layout)",
         "frame": "x forward, y left, z up; metres",
         "lidar": asdict(LIDAR_CONFIG),
         "lidar_model": "YDLIDAR T-mini Plus 12M; Yahboom variant 52514639020348",
@@ -103,6 +103,16 @@ def training_robot_metadata():
         "max_linear_speed_m_s": MAX_LINEAR_SPEED,
         "heading_gain": HEADING_GAIN,
         "camera_native_aspect": CAMERA_ASPECT,
+        "camera_centers_m": {
+            "left": [0.103, 0.035, 0.175],
+            "right": [0.103, -0.035, 0.175],
+        },
+        "camera_horizontal_fov_deg": 69.47,
+        "camera_vertical_fov_deg": 42.61,
+        "camera_yaw_outward_deg": 29.73,
+        "camera_pitch_down_deg": 5.0,
+        "lidar_center_m": [0.0, 0.0, 0.210],
+        "top_deck_height_m": 0.130,
         "wheel_diameter_m": 2 * WHEEL_RADIUS,
         "wheel_tread_width_m": 2 * WHEEL_HALF_WIDTH,
         "wheel_overall_width_with_hub_m": 0.0306,

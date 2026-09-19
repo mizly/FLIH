@@ -1,4 +1,20 @@
+export type TrainingPreview = {
+  episode: string;
+  environment: number;
+  captured_at: number;
+  step: number;
+  simulation_seconds: number;
+  arena: number;
+  goal: [number, number];
+  goal_radius: number;
+  obstacles: { x: number; y: number; radius: number; height: number }[];
+  pose: { x: number; y: number; yaw: number };
+  collision: boolean;
+  trail: [number, number][];
+};
+
 export type TrainingSnapshot = {
+  preview?: TrainingPreview;
   schema_version: number;
   run_id: string;
   started_at: number;

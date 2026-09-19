@@ -468,3 +468,108 @@ td .training-muted {
     display: none;
   }
 }
+.training-scene {
+  margin: 20px 0;
+}
+.training-scene-viewport {
+  position: relative;
+  background: #101d22;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.training-scene canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.training-scene canvas[hidden] {
+  display: none;
+}
+.training-scene-badge,
+.training-scene-readout {
+  position: absolute;
+  color: #c7d9da;
+  font-size: 11px;
+  pointer-events: none;
+}
+.training-scene-badge {
+  top: 18px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.training-scene-badge span {
+  width: 6px;
+  height: 6px;
+  background: #77cdbb;
+  border-radius: 50%;
+}
+.training-scene-readout {
+  right: 20px;
+  bottom: 18px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.training-scene-empty {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  color: #c7d9da;
+  text-align: center;
+  padding: 24px;
+}
+.training-scene-empty span {
+  font-size: 12px;
+  color: #91acb1;
+}
+.training-scene-button {
+  border: 1px solid #cdd9d2;
+  border-radius: 6px;
+  padding: 7px 11px;
+  color: #28675e;
+  background: #f5f6f2;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.training-scene-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.training-scene-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 15px;
+  color: #63716b;
+  font-size: 11px;
+}
+.training-scene-foot > div,
+.training-scene-foot label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.training-scene-foot input {
+  width: 110px;
+  accent-color: #28675e;
+}
+.training-scene-key {
+  width: 16px;
+  height: 2px;
+  background: #438e7d;
+}
+.training-scene-key.goal {
+  border: 2px solid #7bb26e;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-left: 12px;
+  background: transparent;
+}

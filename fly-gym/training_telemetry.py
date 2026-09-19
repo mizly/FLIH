@@ -17,6 +17,8 @@ class TrainingTelemetry:
         self.lock = threading.RLock()
         self.stopped = threading.Event()
         self.started = time.time()
+        self.preview_enabled = os.environ.get("FLY_GYM_PREVIEW", "1") != "0"
+        self._preview_due = 0.0
         self.data = dict(schema_version=1, run_id=uuid.uuid4().hex[:12],
                          started_at=self.started, updated_at=self.started,
                          status="running", phase="initializing", config=config,
@@ -24,6 +26,45 @@ class TrainingTelemetry:
                          environment_steps=0, episodes_total=0, successes=0,
                          collision_episodes=0, loss_history=[], episodes=[],
                          iterations=[], checkpoints=[], buffer_counts={}, error=None)
+
+    def preview(self, env, episode, step, collision=False):
+        """Copy only CPU geometry from env 0, at most twice per wall-clock second.
+
+        No render, inference, tensor transfer, file IO, or waiting for a reader.
+        A busy heartbeat drops this sample. Browser speed never gates training.
+        """
+        if not self.preview_enabled:
+            return
+        now = time.monotonic()
+        if now < self._preview_due:
+            return
+        self._preview_due = now + 0.5
+        if not self.lock.acquire(blocking=False):
+            return
+        try:
+            previous = self.data.get("preview")
+            key = f"{self.data['iteration']}:{episode}"
+            xy = [float(v) for v in env._base_xy()]
+            pose = dict(x=xy[0], y=xy[1], yaw=float(env._base_yaw()))
+            trail = previous["trail"] if previous and previous["episode"] == key else []
+            sample = dict(
+                episode=key, environment=0, captured_at=time.time(), step=int(step),
+                simulation_seconds=float(env.data.time), arena=float(env.arena),
+                goal=[float(v) for v in env._goal_xy], goal_radius=float(env.goal_radius),
+                obstacles=[dict(x=float(env.data.geom_xpos[gid][0]),
+                                y=float(env.data.geom_xpos[gid][1]),
+                                radius=float(env.model.geom_size[gid][0]),
+                                height=float(env.model.geom_size[gid][1]) * 2)
+                           for gid in env.obstacle_ids[:20]],
+                pose=pose, collision=bool(collision), trail=(trail + [xy])[-64:])
+            # Invalid optional geometry must not poison the metrics JSON.
+            json.dumps(sample, allow_nan=False)
+            self.data["preview"] = sample
+        except Exception:
+            # Optional observation must never terminate training. Disable on failure.
+            self.preview_enabled = False
+        finally:
+            self.lock.release()
 
     def update(self, **values):
         with self.lock:

@@ -36,7 +36,7 @@ vision pipeline.
 
 ## Physical robot configuration
 
-The revised `../wheel_positions.pdf` is the layout reference. Both texture scenes
+The updated `wheel_positions.png` is the layout reference. Both texture scenes
 include `environment/robot_geometry.xml`. Coordinates in the
 diagram are millimetres, with x right and y forward. MuJoCo uses metres with x
 forward and y left: `(x_sim, y_sim, z_sim) = (y_diagram, -x_diagram, z_diagram)/1000`.
@@ -47,10 +47,10 @@ simulation height is 100 mm. Sensor local z offsets account for that height.
 | --- | --- |
 | Four wheel centers | x = ±108 mm, y = ±124 mm in diagram coordinates |
 | Track / wheelbase | 216 / 248 mm |
-| Camera centers | L: (-35, 103, 165), R: (35, 103, 165) mm |
+| Camera centers | L: (-35, 103, 175), R: (35, 103, 175) mm |
 | Camera orientation | 29.73° outward yaw per camera, 5° downward pitch |
 | Camera field of view | 69.47° horizontal × 42.61° vertical, nominal 77° diagonal |
-| Top deck / LiDAR plane | 130 / 195 mm above ground; LiDAR centered horizontally |
+| Top deck / LiDAR plane | 130 / 210 mm above ground; LiDAR centered horizontally |
 
 Cameras render at 16:9 before resizing the entire image to the network's configured
 input size (128×128 by default). This preserves angular coverage even for square
@@ -340,6 +340,26 @@ python analysis_pca_statistics.py
 
 `analysis_pca.py` and `compare_trajectories.py` still have local data-path constants near the top of
 each file that need to point at your own eval-data location before running them.
+
+## Live training preview
+
+The `/training` dashboard displays a lightweight 3D arena for new connectome
+DAgger runs. One environment publishes CPU position, heading, goal, and obstacle
+geometry at most twice per wall-clock second through the existing telemetry
+heartbeat. The browser receives it with the existing two-second metrics poll;
+intermediate steps are skipped. The fly is a stylized avatar of the navigation
+robot, not a biomechanical fly simulation. It holds the last scene during optimization.
+
+There is no extra inference, simulator rendering, GPU readback, or frame queue.
+Sampling drops updates if the telemetry lock is busy and retains only 64 trail
+points. Browser interpolation is capped at 20 FPS for 400 ms after a new sample,
+then stops; hidden/off-screen views stop drawing. Reduced motion disables
+interpolation. Small CPU-copy and payload costs remain; zero throughput impact
+has not been established with a full training benchmark.
+
+Existing training processes need a restart to publish geometry; do not interrupt
+an expensive run just for the preview. To disable sampling entirely for your next
+run, set `$env:FLY_GYM_PREVIEW = "0"` in PowerShell before starting the trainer.
 
 ## License
 
