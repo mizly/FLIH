@@ -64,7 +64,6 @@ PROG_SCALE = 10.0
 RECORD_CSV = None#"connectomes/drosophila adult connectome/moonwalker_neurons.csv"       # e.g., "neurons_to_record.csv"
 OVERWRITE_CSV = None#"connectomes/drosophila adult connectome/moonwalker_neurons.csv"    # e.g., "neurons_to_overwrite.csv"
 END_ON_COLLISION = False
-MAX_EPISODE_STEPS = 600
 
 def maybe_show_cameras(obs):
     if cv2 is None: return
@@ -117,15 +116,17 @@ def _load_agent(checkpoint_path: str, device: torch.device, dtype: torch.dtype) 
         batch_chunk=BATCH_CHUNK,
         row_tile_size=ROW_TILE_SIZE,
     )
+    state_dict = torch.load(checkpoint_path, map_location=device)
+    lidar_bins = state_dict["wind_mlp.0.weight"].shape[1] - 2 if "wind_mlp.0.weight" in state_dict else 0
     agent = ConnectomeAgent(
         cell,
+        lidar_bins=lidar_bins,
         photoreceptor_positions=pr_positions,
         input_splits=input_splits,
         dtype=dtype,
         input_scale_init=INPUT_SCALE_INIT,
     ).to(device)
     print("Checkpoint path: ", checkpoint_path)
-    state_dict = torch.load(checkpoint_path, map_location=device)
     agent.load_state_dict(state_dict)
     agent.eval()
     return agent, id2idx
@@ -363,7 +364,6 @@ def run_one_configuration(checkpoint, vision, rendermode = None):
     teacher = PlannerAnalyticTeacher(
         arena_half_extent=env.arena,
         cell_size=0.1,
-        robot_radius=0.2,
         safety_margin=0.01,
         obstacle_box_half=(0.4, 0.4),
         k_nearest_obs=5,

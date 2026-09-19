@@ -52,7 +52,8 @@ WIND_SENSING_CSV = BASE_PATH + "JO-C_and_JO-E.csv"
 # -----------------------------
 ENV_WIDTH = 128
 ENV_HEIGHT = 128
-MAX_EPISODE_STEPS = 600
+# 80 s at the default 50 Hz control rate, for the physical robot's lower speed.
+MAX_EPISODE_STEPS = 4000
 N_OBSTACLES = 20
 ARENA_HALF_EXTENT = 7.0
 RENDER_MODE = None

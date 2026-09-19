@@ -23,12 +23,16 @@ class ConnectomeAgent(nn.Module):
         use_value_head: bool = False,
         learn_policy_std: bool = False,
         policy_std_init: float = 0.3,
+        lidar_bins: int = 0,
         # env: MuJoCoTwoCamEnv = None
     ):
         super().__init__()
         # self.env = env
         self.cell = cell
         self.input_splits = input_splits  # name -> (start, end) indices into flat input vector
+        self.lidar_bins = int(lidar_bins)
+        if self.lidar_bins < 0 or (self.lidar_bins and self._segment_length("wind") < 2 + self.lidar_bins):
+            raise ValueError("Wind input segment must have room for goal direction and LiDAR sectors")
         self.action_dim = cell.readout_head[-1].out_features if hasattr(cell, "readout_head") else 2
         
         # Per-type input scaling
@@ -93,7 +97,7 @@ class ConnectomeAgent(nn.Module):
         if "wind" in self.input_splits and self._segment_length("wind") > 0:
             n_wind_neurons = self._segment_length("wind")
             self.wind_mlp = nn.Sequential(
-                nn.Linear(2, 128, dtype=dtype),
+                nn.Linear(2 + self.lidar_bins, 128, dtype=dtype),
                 nn.ReLU(),
                 nn.Linear(128, n_wind_neurons, dtype=dtype),
             )
@@ -403,6 +407,11 @@ class ConnectomeAgent(nn.Module):
             return torch.zeros(batch, 0, device=device, dtype=dtype)
         x_wind = torch.zeros(batch, n_wind, device=device, dtype=dtype)
         x_wind[:, :2] = wind
+        if self.lidar_bins:
+            features = sensors.get("lidar_features")
+            if features is None or features.shape != (batch, self.lidar_bins):
+                raise ValueError("LiDAR-trained policy requires matching lidar_features")
+            x_wind[:, 2:2 + self.lidar_bins] = features
         return x_wind
 
     def obs_to_x(self, obs: Dict[str, Any]) -> torch.Tensor:
@@ -476,7 +485,7 @@ class ConnectomeAgent(nn.Module):
                 # In most cases, if wind_mlp is None, the wind segment length is 0.
                 pass 
             else:
-                x_wind = self.wind_mlp(x_wind[:, 0:2])
+                x_wind = self.wind_mlp(x_wind[:, :2 + self.lidar_bins])
             out = torch.cat([a_L1_L, a_L2_L, a_L3_L, a_L1_R, a_L2_R, a_L3_R, 
                              x_tac_L, x_tac_R, x_wind], dim=-1)
             
@@ -549,7 +558,7 @@ class ConnectomeAgent(nn.Module):
         # - Velocity (dim 0): [-1, 1] for environment compatibility
         # - Angle (dim 1): [-π, π] for heading control
         y = y.clone()  # Avoid in-place modification issues
-        y[:, 0] = torch.tanh(y[:, 0]) *3  # Velocity in [-1, 1]
+        y[:, 0] = torch.tanh(y[:, 0])  # Normalized speed in [-1, 1]
         y[:, 1] = math.pi * torch.tanh(y[:, 1])  # Angle in [-pi, pi]
 
         return hT, y
@@ -635,7 +644,7 @@ class ConnectomeAgent(nn.Module):
         # Velocity (dim 0): [-1, 1]
         # Angle (dim 1): [-pi, pi]
         y_out = y_seq.clone()
-        y_out[..., 0] = torch.tanh(y_out[..., 0]) *3
+        y_out[..., 0] = torch.tanh(y_out[..., 0])
         y_out[..., 1] = math.pi * torch.tanh(y_out[..., 1])
         
         # Return: h_final (for RNN continuity), y_out (policy), dn_seq (for value)

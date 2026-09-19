@@ -7,6 +7,7 @@ import mujoco
 from core.utils import rot2d, box_to_disc_radius, wrap_pi
 from core.vfhplus import VFHPlusPlanner
 from models.teacher_analytic_model import pid_line_follower, PIDState
+from robot_config import ROBOT_RADIUS
 
 
 # ----------------------------
@@ -16,7 +17,7 @@ class PlannerAnalyticTeacher:
     def __init__(self, 
                  arena_half_extent: float, 
                  cell_size: float = 0.1,
-                 robot_radius: float = 0.2, 
+                 robot_radius: float = ROBOT_RADIUS,
                  safety_margin: float = 0.1,
                  obstacle_box_half: Tuple[float, float] = (0.4, 0.4),
                  obstacle_cylinder_radius: float = 0.4,

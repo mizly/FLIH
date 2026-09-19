@@ -168,51 +168,6 @@
       <geom name="obstacle19" type="cylinder" size="0.4 0.8 0" pos="0 0 0" friction="8.0 0.5 0.1" material="matobs" contype="1" conaffinity="7" solref="0.001 1" solimp="0.98 0.995 0.0001" />
     </body>
     <site name="goal_site" pos="0 0 0.25" size="0.25" rgba="1.0 1.0 1.0 1.0" />
-    <!-- Robot -->
-    <body name="base" pos="0 0 0.11">
-      <freejoint name="base_free"/>
-
-      <!-- Chassis -->
-      <geom name="base_geom" type="cylinder" size="0.2 0.09" pos="0.0 0.0 0.0"
-            material="matrobot" condim="3" solref="0.001 1" solimp="0.98 0.995 0.0001" contype="2" conaffinity="1"  density="100"/>
-
-      <!-- Wheels (vertical) -->
-      <body name="left_wheel" pos="-0.05 0.18 -0.05">
-        <joint name="left_hinge" type="hinge" axis="0 1 0" limited="false" damping="0.2" armature="0.02"/>
-        <geom name="left_wheel_geom" type="cylinder" size="0.06 0.02"
-              euler="90 0 0" material="matwheel" friction="1 0.1 0.0" condim="3"  contype="4" conaffinity="1"  density="100"/>
-      </body>
-      <body name="right_wheel" pos="-0.05 -0.18 -0.05">
-        <joint name="right_hinge" type="hinge" axis="0 1 0" limited="false" damping="0.2" armature="0.02"/>
-        <geom name="right_wheel_geom" type="cylinder" size="0.06 0.02"
-              euler="90 0 0" material="matwheel" friction="1 0.1 0.0" condim="3" contype="4" conaffinity="1"  density="100"/>
-      </body>
-      <!--
-      <body name="front_caster" pos="0.15 0 -0.05">
-        <geom name="caster_geom" type="sphere" size="0.06" friction="0.0 0.0 0.0" condim="1"/>
-      </body>-->
-      <!---->
-      <body name="front_caster_mount" pos="0.15 0 -0.05">
-        <joint name="caster_swivel" type="hinge" axis="0 0 1" damping="0.05" pos="0 0 0"/>
-        <geom name="caster_fork" type="capsule" fromto="0 0 0 -0.03 0 -0.02" size="0.01" material="matwheel"  density="100"/>
-        <body name="caster_wheel" pos="-0.03 0 -0.02">
-            <joint name="caster_axle" type="hinge" axis="0 1 0" damping="0.001"/>
-            <geom name="caster_wheel_geom" type="cylinder" size="0.04 0.015" euler="90 0 0"
-                  material="matwheel" condim="3" friction="1.0 0.005 0.0001"  contype="4" conaffinity="1"/>
-        </body>
-      </body>
-
-      <!-- Cameras + markers -->
-        <camera name="cam_left"  pos="0.12  0.07 0.09" euler="90 -35 0" fovy="120"/>
-        <camera name="cam_right" pos="0.12 -0.07 0.09" euler="-90 -35 180" fovy="120"/>
-        <geom name="cam_left_marker"  type="sphere" size="0.03"
-                pos="0.12  0.07 0.1" rgba="1 0 0 1" contype="0" conaffinity="0"  density="100"/>
-        <geom name="cam_right_marker" type="sphere" size="0.03"
-                pos="0.12 -0.07 0.1" rgba="1 0 0 1" contype="0" conaffinity="0"  density="100"/>
-    </body>
   </worldbody>
-  <actuator>
-    <motor name="left_motor" joint="left_hinge" gear="3" ctrlrange="-2 2" />
-    <motor name="right_motor" joint="right_hinge" gear="3" ctrlrange="-2 2" />
-  </actuator>
+  <include file="robot_geometry.xml"/>
 </mujoco>

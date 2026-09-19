@@ -378,6 +378,10 @@ def obs_to_torch(obs: Dict, device: torch.device, dtype: torch.dtype, vision: Li
         "collision_angle": collision_angle,
         "wind_direction": wind_direction,
     }
+    if "lidar_features" in sensors_np:
+        sensors["lidar_features"] = torch.as_tensor(
+            sensors_np["lidar_features"], device=device, dtype=dtype
+        ).unsqueeze(0)
     return {
         "cam_left": cam_left.to(dtype=torch.float32),
         "cam_right": cam_right.to(dtype=torch.float32),

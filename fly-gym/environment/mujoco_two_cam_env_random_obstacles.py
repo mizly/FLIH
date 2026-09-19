@@ -7,10 +7,15 @@ from gymnasium import spaces
 import mujoco
 from mujoco import MjModel, MjData, Renderer
 import glfw
+import cv2
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.astar import AStarGridPlanner, GridSpec
+from core.lidar import lidar_proximity_features
+from robot_config import (BASE_HEIGHT, WHEEL_RADIUS, WHEEL_TRACK, ROBOT_RADIUS,
+                          CAMERA_ASPECT, MAX_LINEAR_SPEED, HEADING_GAIN,
+                          LIDAR_CONFIG, LIDAR_FEATURE_BINS, MOTOR_CONFIG)
 
 
 def _quat_to_yaw(q):
@@ -37,7 +42,7 @@ def vel_angle_to_action(vel: float, pred_heading_angle: float) -> np.ndarray:
     return np.array([left, right], dtype=np.float32)
 
 class MuJoCoTwoCamEnv(gym.Env):
-    """Two-wheeled robot with two cameras, obstacles, and visibility-aware rewards (MuJoCo 3.x)."""
+    """Four-wheel skid-steer robot with two cameras and a planar LiDAR."""
 
     metadata = {"render_modes": ["human", "rgb_array"]}
 
@@ -54,7 +59,7 @@ class MuJoCoTwoCamEnv(gym.Env):
     def __init__(self,
                  width=84,
                  height=84,
-                 max_episode_steps=600,
+                 max_episode_steps=4000,
                  n_obstacles=20,
                  goal_radius=0.8,
                  goal_bonus=10.0,
@@ -70,7 +75,8 @@ class MuJoCoTwoCamEnv(gym.Env):
                  stall_threshold=0.002,
                  stall_limit=50,
                  end_on_collision=False,
-                 texture_mode="checker"):
+                 texture_mode="checker",
+                 lidar_config=LIDAR_CONFIG):
         super().__init__()
 
         if texture_mode not in self.TEXTURE_XML_BY_MODE:
@@ -81,6 +87,18 @@ class MuJoCoTwoCamEnv(gym.Env):
         self.texture_mode = texture_mode
 
         self.W, self.H = int(width), int(height)
+        # Render the full physical 16:9 view, then resize for legacy square retinas.
+        self.camera_height = max(9, int(math.ceil(self.H / 9)) * 9)
+        self.camera_width = self.camera_height * 16 // 9
+        self.lidar_config = lidar_config
+        self.lidar_angles = np.linspace(-math.radians(lidar_config.fov_deg) / 2,
+                                       math.radians(lidar_config.fov_deg) / 2,
+                                       lidar_config.num_rays, endpoint=False).astype(np.float32)
+        self._lidar_local_dirs = np.column_stack((np.cos(self.lidar_angles),
+                                                  np.sin(self.lidar_angles),
+                                                  np.zeros(lidar_config.num_rays)))
+        self._lidar_time = -np.inf
+        self._lidar_next_time = -np.inf
         self.max_steps = int(max_episode_steps)
         max_placeholders = 20
         if n_obstacles > max_placeholders:
@@ -100,10 +118,18 @@ class MuJoCoTwoCamEnv(gym.Env):
 
         xml_name = self.TEXTURE_XML_BY_MODE[texture_mode]
         self.model = mujoco.MjModel.from_xml_path(str(Path(__file__).with_name(xml_name)))
+        # Unused placeholders must not appear in cameras, scans, or contacts.
+        for i in range(self.n_obstacles, max_placeholders):
+            geom = self.model.geom(f"obstacle{i}")
+            geom.rgba[3] = 0
+            geom.matid[:] = -1
+            geom.group[:] = 2
+            geom.contype[:] = 0
+            geom.conaffinity[:] = 0
         self.data = MjData(self.model)
         
         # Renderer for sensors (cameras)
-        self.renderer = Renderer(self.model, self.W, self.H)
+        self.renderer = Renderer(self.model, height=self.camera_height, width=self.camera_width)
 
         # --- Manual Rendering Setup ---
         self.window = None
@@ -136,6 +162,11 @@ class MuJoCoTwoCamEnv(gym.Env):
         self.right_hinge_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "right_hinge")
         self.cam_left_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_CAMERA, "cam_left")
         self.cam_right_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_CAMERA, "cam_right")
+        self.lidar_site_id = self.model.site("lidar").id
+        self.wheel_joint_ids = [self.model.joint(f"{name}_hinge").id
+                                for name in ("left", "right", "rear_left", "rear_right")]
+        self._wheel_qpos = self.model.jnt_qposadr[self.wheel_joint_ids]
+        self._wheel_qvel = self.model.jnt_dofadr[self.wheel_joint_ids]
 
         self.obstacle_ids = [mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, f"obstacle{i}")
                              for i in range(self.n_obstacles)]
@@ -157,7 +188,8 @@ class MuJoCoTwoCamEnv(gym.Env):
         self._obstacle_xy[:, 1] = self.model.qpos0[self._obstacle_y_qposadr]
 
         # Spaces
-        self.action_space = spaces.Box(-1.0, 1.0, (2,), np.float32)
+        self.action_space = spaces.Box(np.array([-1.0, -np.pi], np.float32),
+                                       np.array([1.0, np.pi], np.float32))
         self.observation_space = spaces.Dict({
             "cam_left":  spaces.Box(0, 255, (self.H, self.W, 3), np.uint8),
             "cam_right": spaces.Box(0, 255, (self.H, self.W, 3), np.uint8),
@@ -165,6 +197,12 @@ class MuJoCoTwoCamEnv(gym.Env):
                 "vec_to_goal": spaces.Box(-np.inf, np.inf, (2,), np.float32),
                 "collision": spaces.Box(0.0, 1.0, (1,), np.float32),
                 "wind_direction": spaces.Box(-1.0, 1.0, (2,), np.float32), # NEW
+                "lidar_ranges": spaces.Box(lidar_config.min_range, lidar_config.max_range,
+                                            (lidar_config.num_rays,), np.float32),
+                "lidar_angles": spaces.Box(-np.pi, np.pi, (lidar_config.num_rays,), np.float32),
+                "lidar_features": spaces.Box(0.0, 1.0, (LIDAR_FEATURE_BINS,), np.float32),
+                "wheel_angular_velocity": spaces.Box(-np.inf, np.inf, (4,), np.float32),
+                "wheel_encoder_counts": spaces.Box(np.iinfo(np.int64).min, np.iinfo(np.int64).max, (4,), np.int64),
             }),
             "privileged": spaces.Box(-np.inf, np.inf, (17,), np.float32), # 2(pos)+2(yaw)+2(goal)+1(vel)+10(obs)
         })
@@ -192,7 +230,7 @@ class MuJoCoTwoCamEnv(gym.Env):
             GridSpec(
                 arena_half_extent=self.arena,
                 cell_size=0.2, 
-                obstacle_inflate=0.2 # Roughly robot radius
+                obstacle_inflate=ROBOT_RADIUS
             )
         )
 
@@ -225,11 +263,13 @@ class MuJoCoTwoCamEnv(gym.Env):
     def place_robot(self, x, y, yaw, qpos, qvel):
         free_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, "base_free")
         base_qpos_start = self.model.jnt_qposadr[free_id]
-        qpos[base_qpos_start + 0:base_qpos_start + 3] = [x, y, 0.1]
+        qpos[base_qpos_start + 0:base_qpos_start + 3] = [x, y, BASE_HEIGHT]
         half = yaw * 0.5
         qpos[base_qpos_start + 3:base_qpos_start + 7] = [math.cos(half), 0, 0, math.sin(half)]
-        qpos[self.model.jnt_qposadr[self.left_hinge_id]] = 0.0
-        qpos[self.model.jnt_qposadr[self.right_hinge_id]] = 0.0
+        for joint_id in self.wheel_joint_ids:
+            qpos[self.model.jnt_qposadr[joint_id]] = 0.0
+        self._lidar_time = -np.inf
+        self._lidar_next_time = -np.inf
 
         self.data.qpos[:] = qpos
         self.data.qvel[:] = qvel * 0
@@ -312,11 +352,16 @@ class MuJoCoTwoCamEnv(gym.Env):
     # ---------------- Step ----------------
     def step(self, action):
         self._t += 1
-        a = vel_angle_to_action(vel=action[0], pred_heading_angle=action[1])
-        a = np.clip(np.asarray(a, np.float32), -1, 1) * self._action_scale
-        self.data.ctrl[:] = a
+        # Public action remains [normalized speed, relative heading error].
+        v = float(np.clip(action[0], -1, 1)) * MAX_LINEAR_SPEED
+        omega = HEADING_GAIN * float(np.clip(action[1], -math.pi, math.pi))
+        a = np.array([v - omega * WHEEL_TRACK / 2,
+                      v + omega * WHEEL_TRACK / 2]) / WHEEL_RADIUS
+        a *= min(1.0, self._action_scale / max(np.max(np.abs(a)), 1e-8))
+        self.data.ctrl[:] = np.tile(a, 2)
         for _ in range(self.frame_skip):
             mujoco.mj_step(self.model, self.data)
+        mujoco.mj_forward(self.model, self.data)
 
         xy = self._base_xy()
         prev_d = self._dist_to_goal(self._prev_xy, dist_mode="euclidean")
@@ -513,7 +558,35 @@ class MuJoCoTwoCamEnv(gym.Env):
 
     def _render_camera(self, cam_name):
         self.renderer.update_scene(self.data, camera=cam_name)
-        return self.renderer.render()
+        return cv2.resize(self.renderer.render(), (self.W, self.H), interpolation=cv2.INTER_AREA)
+
+    def lidar_scan(self):
+        """Sample-and-hold scan at the configured rate; exclude all robot geoms.
+
+        Ray origin/orientation follow the mounted sensor, including body tilt.
+        """
+        cfg = self.lidar_config
+        if self.data.time + 1e-9 >= self._lidar_next_time:
+            origin = self.data.site_xpos[self.lidar_site_id]
+            rotation = self.data.site_xmat[self.lidar_site_id].reshape(3, 3)
+            directions = self._lidar_local_dirs @ rotation.T
+            ranges = np.full(cfg.num_rays, cfg.max_range, dtype=np.float32)
+            groups = np.array([1, 0, 0, 1, 1, 1], dtype=np.uint8)
+            geom_id = np.zeros(1, dtype=np.int32)
+            for i, direction in enumerate(directions):
+                distance = mujoco.mj_ray(self.model, self.data, origin, direction,
+                                         groups, 1, self.base_body_id, geom_id)
+                if distance >= 0:
+                    ranges[i] = np.clip(distance, cfg.min_range, cfg.max_range)
+            self._lidar_ranges = ranges
+            self._lidar_time = float(self.data.time)
+            period = 1.0 / cfg.rate_hz
+            if not np.isfinite(self._lidar_next_time):
+                self._lidar_next_time = self._lidar_time + period
+            else:
+                periods = max(1, math.floor((self._lidar_time - self._lidar_next_time + 1e-9) / period) + 1)
+                self._lidar_next_time += periods * period
+        return self._lidar_ranges.copy()
 
     def _get_obs(self):
         img_left = self._render_camera("cam_left")
@@ -601,7 +674,8 @@ class MuJoCoTwoCamEnv(gym.Env):
         rotation[0:3, 0:3] = rot3
         fovy = float(self.model.cam_fovy[cam_id]) * math.pi / 180.0
         focal_scaling = (1.0 / math.tan(fovy / 2.0)) * (self.H / 2.0)
-        focal = np.diag([-focal_scaling, focal_scaling, 1.0, 0.0])[0:3, :]
+        focal = np.diag([-focal_scaling * (self.W / self.H) / CAMERA_ASPECT,
+                         focal_scaling, 1.0, 0.0])[0:3, :]
         image = np.eye(3, dtype=np.float64)
         image[0, 2] = (self.W - 1) / 2.0
         image[1, 2] = (self.H - 1) / 2.0
@@ -714,6 +788,9 @@ class MuJoCoTwoCamEnv(gym.Env):
         wind_angle = math.atan2(dy, dx)
         rel_wind_angle = wrap_pi(wind_angle - self._base_yaw())
         wind_direction = np.array([math.cos(rel_wind_angle), math.sin(rel_wind_angle)], dtype=np.float32)
+        ranges = self.lidar_scan()
+        # Nearest range in each angular sector, expressed as proximity [0, 1].
+        lidar_features = lidar_proximity_features(ranges, self.lidar_angles, self.lidar_config)
 
         return {
             "vec_to_goal": vec_to_goal, 
@@ -723,6 +800,12 @@ class MuJoCoTwoCamEnv(gym.Env):
             "vec_left_to_goal": vec_left_to_goal, 
             "vec_right_to_goal": vec_right_to_goal,
             "wind_direction": wind_direction, # NEW
+            "lidar_ranges": ranges,
+            "lidar_angles": self.lidar_angles.copy(),
+            "lidar_features": lidar_features,
+            "wheel_angular_velocity": self.data.qvel[self._wheel_qvel].astype(np.float32),
+            "wheel_encoder_counts": np.rint(self.data.qpos[self._wheel_qpos] *
+                MOTOR_CONFIG.encoder_counts_per_wheel_revolution / (2 * np.pi)).astype(np.int64),
         }
 
 
@@ -780,6 +863,8 @@ class MuJoCoTwoCamEnv(gym.Env):
         # Only check the SINGLE nearest obstacle to save compute
         diffs = self._obstacle_xy[:self.n_obstacles] - xy
         dists = np.linalg.norm(diffs, axis=1)
+        if not len(dists):
+            return r_danger
         nearest_idx = np.argmin(dists)
         
         min_dist = dists[nearest_idx]
@@ -798,6 +883,7 @@ class MuJoCoTwoCamEnv(gym.Env):
         return r_danger
 
     def close(self):
+        self.renderer.close()
         if self.window:
             try:
                 glfw.destroy_window(self.window)

@@ -3,6 +3,7 @@ import math
 import time as _time
 import csv
 import os
+import json
 from typing import Tuple, Dict, List, Optional
 import matplotlib.pyplot as plt
 
@@ -14,6 +15,10 @@ import cv2
 from environment.mujoco_two_cam_env_random_obstacles import MuJoCoTwoCamEnv
 from agents.teacher_analytic_agent import PlannerAnalyticTeacher
 from agents.connectome_rnn_agent import ConnectomeAgent
+from robot_config import LIDAR_CONFIG, LIDAR_FEATURE_BINS, ROBOT_RADIUS, training_robot_metadata
+from training_telemetry import TrainingTelemetry
+
+telemetry = None
 from core.utils import (
     get_device,
     build_connectome_cell,
@@ -141,6 +146,7 @@ def _make_env(render_mode=None, seed = None):
         render_mode=render_mode,
         end_on_collision=END_ON_COLLISION,
         seed=seed,
+        lidar_config=LIDAR_CONFIG,
     )
 
 def _make_teacher():
@@ -148,7 +154,7 @@ def _make_teacher():
     return PlannerAnalyticTeacher(
         arena_half_extent=ARENA_HALF_EXTENT,
         cell_size=0.1,
-        robot_radius=0.2,
+        robot_radius=ROBOT_RADIUS,
         safety_margin=0.1,
         obstacle_box_half=(0.4, 0.4),
         k_nearest_obs=5,
@@ -550,7 +556,18 @@ def save_checkpoint(agent, iter_idx):
     os.makedirs(CHECKPOINT_DIR, exist_ok=True)
     ckpt_path = os.path.join(CHECKPOINT_DIR, f"connectome_rnn_dagger_iter_{iter_idx}.pt")
     torch.save(agent.state_dict(), ckpt_path)
+    save_robot_metadata(ckpt_path)
     return ckpt_path
+
+
+def save_robot_metadata(checkpoint_path):
+    metadata = training_robot_metadata()
+    metadata.update({"observation_size": [ENV_WIDTH, ENV_HEIGHT],
+                     "max_episode_steps": MAX_EPISODE_STEPS,
+                     "control_period_s": 0.02,
+                     "teacher": "privileged VFH+; student uses cameras, LiDAR and goal direction"})
+    with open(str(checkpoint_path) + ".robot.json", "w", encoding="utf-8") as handle:
+        json.dump(metadata, handle, indent=2)
 
 
 def forward_policy_sequence(agent, xs):
@@ -646,6 +663,8 @@ def rollout_and_collect_balanced(
     teacher_act_buf = [[] for _ in range(n_envs)]
     action_exec   = [np.zeros(2, dtype=np.float32) for _ in range(n_envs)]
     steps         = [0] * n_envs
+    episode_rewards = [0.0] * n_envs
+    episode_collisions = [False] * n_envs
     noise_disturbing = [False] * n_envs
     noise_steps   = [0] * n_envs
     noise_vals    = [np.zeros(2, dtype=np.float32) for _ in range(n_envs)]
@@ -664,6 +683,8 @@ def rollout_and_collect_balanced(
     def _process_reset_obs(i):
         """Buffer the reset observation, run obs_to_x + x_to_action, get teacher action."""
         obs = obs_list[i]
+        episode_rewards[i] = 0.0
+        episode_collisions[i] = False
         raw_obs_buf[i].append(obs)
 
         # Restore per-env retinal state (None after reset)
@@ -703,7 +724,11 @@ def rollout_and_collect_balanced(
         for i in range(n_envs):
             if not active[i]:
                 continue
-            obs, _, done_flags[i], trunc_flags[i], _ = envs[i].step(action_exec[i])
+            obs, reward, done_flags[i], trunc_flags[i], _ = envs[i].step(action_exec[i])
+            episode_rewards[i] += reward
+            episode_collisions[i] |= bool(obs["sensors"]["collision"])
+            if telemetry:
+                telemetry.advance(1)
             obs_list[i] = obs
             steps[i] += 1
             # Only append non-terminal observations to keep raw_obs_buf aligned
@@ -759,7 +784,7 @@ def rollout_and_collect_balanced(
                 # Post-process outputs (same as agent.step())
                 y = torch.nan_to_num(y, nan=0.0, posinf=0.0, neginf=0.0)
                 student_actions = y.clone()
-                student_actions[:, 0] = torch.tanh(y[:, 0]) * 3
+                student_actions[:, 0] = torch.tanh(y[:, 0])
                 student_actions[:, 1] = math.pi * torch.tanh(y[:, 1])
 
             student_actions_np = student_actions.cpu().numpy()
@@ -834,6 +859,11 @@ def rollout_and_collect_balanced(
                         total_chunks[category] += 1
 
             episodes_done += 1
+            if telemetry:
+                distance = float(np.linalg.norm(envs[i]._goal_xy - envs[i]._base_xy()))
+                telemetry.episode(reward=episode_rewards[i], steps=steps[i],
+                    success=distance < envs[i].goal_radius, collision=episode_collisions[i], distance=distance)
+                telemetry.update(episodes_in_iteration=episodes_done, buffer_counts=buffer.get_counts())
             if episodes_done % 10 == 0 or episodes_done == EPISODES_PER_ITER:
                 elapsed = _time.perf_counter() - t0
                 eps_per_sec = episodes_done / max(elapsed, 1e-6)
@@ -965,7 +995,7 @@ def train_step(agent, buffer, opt, accum_steps=GRAD_ACCUM_STEPS):
 
 
 
-def main():
+def _train():
     # Create output directories before the first iteration.  The CSV logger
     # creates LOSS_DIR lazily, but the loss-plot save happens first.
     os.makedirs(LOSS_DIR, exist_ok=True)
@@ -998,6 +1028,7 @@ def main():
     
     agent = ConnectomeAgent(
         cell,
+        lidar_bins=LIDAR_FEATURE_BINS,
         photoreceptor_positions=pr_positions,
         input_splits=input_splits,
         dtype=dtype,
@@ -1039,6 +1070,9 @@ def main():
         for it in range(N_DAGGER_ITERS):
             beta = beta_schedule(it)
             beta_noise = noise_schedule(it)
+            if telemetry:
+                telemetry.update(iteration=it + 1, beta=beta, phase="collecting",
+                                 episodes_in_iteration=0, train_step=0)
             print(f"\n[DAgger] Iteration {it+1}/{N_DAGGER_ITERS} | beta={beta:.3f} | noise={beta_noise:.3f}")
 
             # Collect data with balanced buffer
@@ -1051,11 +1085,15 @@ def main():
             print(f"[data] Total buffer: Straight={chunk_counts['straight']}, Turn={chunk_counts['turn']}, Collision={chunk_counts['collision']}, PreCol={chunk_counts['pre_collision']}, Start={chunk_counts['start']}")
             
             losses = []
+            if telemetry:
+                telemetry.update(phase="optimizing", buffer_counts=chunk_counts)
             for step_idx in range(TRAIN_STEPS_PER_ITER):
                 
                 try:
                     loss = train_step(agent, buffer, opt)
                     losses.append(loss)
+                    if telemetry:
+                        telemetry.loss(loss, step_idx + 1)
                 except ValueError:
                     break
                 print(f"\r[train] Trained step {step_idx+1}/{TRAIN_STEPS_PER_ITER}, loss={loss:.5f}. Dagger iter {it+1}/{N_DAGGER_ITERS}", end="", flush=True)
@@ -1071,6 +1109,8 @@ def main():
             mean_loss = float(np.mean(losses)) if losses else np.nan
             batches = len(losses)
             log_training_loss(it + 1, mean_loss, batches, len(buffer), chunk_counts)
+            if telemetry:
+                telemetry.iteration_result(mean_loss, batches)
 
             if losses:
                 print(f"[train] mean loss={mean_loss:.5f} | batches={batches}")
@@ -1079,6 +1119,8 @@ def main():
 
             if (it + 1) % 1 == 0:
                 ckpt_path = save_checkpoint(agent, it + 1)
+                if telemetry:
+                    telemetry.checkpoint(ckpt_path)
                 print(f"[ckpt] Saved checkpoint to {ckpt_path}")
 
     finally:
@@ -1087,7 +1129,25 @@ def main():
         if RENDER_MODE == "human" and cv2 is not None:
             cv2.destroyAllWindows()
         torch.save(agent.state_dict(), FINAL_CHECKPOINT_PATH)
+        save_robot_metadata(FINAL_CHECKPOINT_PATH)
+        if telemetry:
+            telemetry.checkpoint(FINAL_CHECKPOINT_PATH)
         print(f"Saved trained model to {FINAL_CHECKPOINT_PATH}")
+
+
+def main():
+    global telemetry
+    config = dict(model="Connectome RNN · DAgger", iterations=N_DAGGER_ITERS,
+                  episodes_per_iteration=EPISODES_PER_ITER, train_steps=TRAIN_STEPS_PER_ITER,
+                  environments=N_ENVS, learning_rate=LR, batch_size=BATCH_SIZE,
+                  max_episode_steps=MAX_EPISODE_STEPS, lidar_rays=LIDAR_CONFIG.num_rays,
+                  lidar_rate_hz=LIDAR_CONFIG.rate_hz, camera_size=[ENV_WIDTH, ENV_HEIGHT])
+    with TrainingTelemetry(config) as monitor:
+        telemetry = monitor
+        try:
+            _train()
+        finally:
+            telemetry = None
 
 
 if __name__ == "__main__":

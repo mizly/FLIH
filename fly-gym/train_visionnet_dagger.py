@@ -130,7 +130,6 @@ def _make_teacher():
     return PlannerAnalyticTeacher(
         arena_half_extent=ARENA_HALF_EXTENT,
         cell_size=0.1,
-        robot_radius=0.2,
         safety_margin=0.1,
         obstacle_box_half=(0.4, 0.4),
         k_nearest_obs=5,
