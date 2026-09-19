@@ -1,0 +1,32 @@
+[
+   {
+      "directory" : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source/third_party/CMSIS/Core/Include\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/lib/clang/18/include\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug/syscfg\"",
+      "file"      : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP/IOI2C.c"
+   },
+   {
+      "directory" : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source/third_party/CMSIS/Core/Include\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/lib/clang/18/include\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug/syscfg\"",
+      "file"      : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP/bsp_motor_iic.c"
+   },
+   {
+      "directory" : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source/third_party/CMSIS/Core/Include\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/lib/clang/18/include\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug/syscfg\"",
+      "file"      : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP/delay.c"
+   },
+   {
+      "directory" : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source/third_party/CMSIS/Core/Include\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/lib/clang/18/include\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug/syscfg\"",
+      "file"      : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP/usart.c"
+   },
+   {
+      "directory" : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source/third_party/CMSIS/Core/Include\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/lib/clang/18/include\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug/syscfg\"",
+      "file"      : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/empty.c"
+   },
+   {
+      "directory" : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug",
+      "command"   : "clang++ -D__MSPM0G3507__ -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source/third_party/CMSIS/Core/Include\" -I\"E:/SoftWare/ti/mspm0_sdk_2_02_00_05/source\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/BSP\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/armv7em-ti-none-eabihf/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c++/v1\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/lib/clang/18/include\" -isystem\"E:/SoftWare/ti/ccstheia151/ccs/tools/compiler/ti-cgt-armllvm_4.0.0.LTS/include/c\" -I\"C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug/syscfg\"",
+      "file"      : "C:/Users/leo/workspace_ccstheia/CarMove_IIC/Debug/syscfg/ti_msp_dl_config.c"
+   }
+]
