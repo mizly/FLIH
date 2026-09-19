@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Crosshair, Minus, Plus, MapPin, Navigation } from "lucide-react";
+import { Box, Crosshair, Map as MapIcon, Minus, Plus, MapPin, Navigation } from "lucide-react";
 import {
   floorPlan,
   nearestRouteNode,
@@ -16,6 +16,7 @@ import {
   type Point,
 } from "@/lib/campus";
 import { Fly } from "./fly";
+import { RoomViewer } from "./room-viewer";
 import { Button } from "./ui/button";
 
 const MIN_ZOOM = 0.8;
@@ -42,6 +43,7 @@ export function CampusMap({ robot, pickup, destination, onPickup, onDestination 
   const [draggingEndpoint, setDraggingEndpoint] = useState<EndpointKind | null>(null);
   const [dragPosition, setDragPosition] = useState<Point | null>(null);
   const [dropTarget, setDropTarget] = useState<PlaceId | null>(null);
+  const [viewMode, setViewMode] = useState<"plan" | "street">("plan");
   const point = places.find((place) => place.id === pickup)!;
   const target = places.find((place) => place.id === destination)!;
   const robotPoint = worldToSource(robot ?? { x: 32.7, y: 58.6 });
@@ -220,10 +222,14 @@ export function CampusMap({ robot, pickup, destination, onPickup, onDestination 
     <div className="map-shell">
       <div className="map-top">
         <span className="map-campus"><MapPin size={17} /> E5 + E7 · sixth floor</span>
-        <span className="map-demo">{robot?.demo === false ? "HARDWARE FEED" : "CALIBRATED PLAN"}</span>
+        <div className="map-view-toggle" role="group" aria-label="Map view">
+          <button type="button" className={viewMode === "plan" ? "active" : ""} onClick={() => setViewMode("plan")} aria-pressed={viewMode === "plan"}><MapIcon size={15} /> Plan</button>
+          <button type="button" className={viewMode === "street" ? "active" : ""} onClick={() => setViewMode("street")} aria-pressed={viewMode === "street"}><Box size={15} /> 3D street view</button>
+        </div>
+        <span className="map-demo">{viewMode === "street" ? "ROOM 6002 MODEL" : robot?.demo === false ? "HARDWARE FEED" : "CALIBRATED PLAN"}</span>
       </div>
       <div className="map-art indoor-map-art">
-        <svg
+        {viewMode === "street" ? <RoomViewer onExit={() => setViewMode("plan")} /> : <svg
           ref={svgRef}
           viewBox={`${floorPlan.sourceOrigin.x} ${floorPlan.sourceOrigin.y} ${floorPlan.sourceSize.width} ${floorPlan.sourceSize.height}`}
           className={draggingEndpoint ? "campus-svg indoor-map-svg endpoint-drag-active" : "campus-svg indoor-map-svg"}
@@ -257,6 +263,20 @@ export function CampusMap({ robot, pickup, destination, onPickup, onDestination 
             </g>
             <path d={pathData([robotPoint, routeNodes[robotNode], ...pickupRoute.slice(1)])} className="active-route pickup-route" markerEnd="url(#route-arrow)" />
             <path d={pathData(destinationRoute)} className="active-route destination-route" markerMid="url(#route-arrow)" markerEnd="url(#route-arrow)" />
+            <g
+              className="room-model-anchor"
+              transform={`translate(${routeNodes.e5Room6002.x} ${routeNodes.e5Room6002.y})`}
+              role="button"
+              tabIndex={0}
+              aria-label="Open 3D street view for Room 6002"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => setViewMode("street")}
+              onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setViewMode("street"); } }}
+            >
+              <circle className="room-model-anchor-ring" r="29" />
+              <circle className="room-model-anchor-dot" r="20" />
+              <text className="room-model-anchor-label" y="1">3D</text>
+            </g>
             {places.map((place) => {
               const location = routeNodes[place.node];
               const unavailable = draggingEndpoint === "start" ? place.id === destination : draggingEndpoint === "end" ? place.id === pickup : false;
@@ -309,19 +329,21 @@ export function CampusMap({ robot, pickup, destination, onPickup, onDestination 
               <foreignObject x="-43" y="-43" width="86" height="76"><Fly small /></foreignObject>
             </g>
           </g>
-        </svg>
-        {draggingEndpoint && dropTarget && (
+        </svg>}
+        {viewMode === "plan" && draggingEndpoint && dropTarget && (
           <div className="endpoint-drag-hint" role="status">
             Drop {draggingEndpoint === "start" ? "START" : "END"} at {places.find((place) => place.id === dropTarget)?.short}
           </div>
         )}
-        <div className="map-compass"><Navigation size={23} /><span>N</span></div>
-        <div className="map-controls">
-          <Button variant="outline" size="icon" aria-label="Zoom in" disabled={zoom >= MAX_ZOOM} onClick={() => stepZoom(1)}><Plus size={19} /></Button>
-          <Button variant="outline" size="icon" aria-label="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => stepZoom(-1)}><Minus size={19} /></Button>
-          <Button variant="outline" size="icon" aria-label="Reset map view" onClick={resetView}><Crosshair size={20} /></Button>
-        </div>
-        <span className="map-note">{tripDistance.toFixed(1)} m · scroll to zoom</span>
+        {viewMode === "plan" && <>
+          <div className="map-compass"><Navigation size={23} /><span>N</span></div>
+          <div className="map-controls">
+            <Button variant="outline" size="icon" aria-label="Zoom in" disabled={zoom >= MAX_ZOOM} onClick={() => stepZoom(1)}><Plus size={19} /></Button>
+            <Button variant="outline" size="icon" aria-label="Zoom out" disabled={zoom <= MIN_ZOOM} onClick={() => stepZoom(-1)}><Minus size={19} /></Button>
+            <Button variant="outline" size="icon" aria-label="Reset map view" onClick={resetView}><Crosshair size={20} /></Button>
+          </div>
+          <span className="map-note">{tripDistance.toFixed(1)} m · scroll to zoom</span>
+        </>}
       </div>
     </div>
   );

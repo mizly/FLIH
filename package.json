@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev frontend --hostname 127.0.0.1",
+    "dev": "node server.mjs --dev",
     "build": "next build frontend",
-    "start": "next start frontend",
+    "start": "node server.mjs",
     "typecheck": "tsc --project frontend/tsconfig.json --noEmit",
     "test": "playwright test --config=frontend/playwright.config.ts",
     "format": "prettier --write frontend/src frontend/tests frontend/playwright.config.ts"
@@ -21,7 +21,9 @@
     "next": "^16.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "three": "^0.186.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
@@ -29,6 +31,8 @@
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@types/ws": "^8.18.1",
     "prettier": "^3.9.8",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"

@@ -1,0 +1,40 @@
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor and IDE metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ESP-IDF / PlatformIO build output
+**/build/
+**/.pio/
+sdkconfig.old
+sdkconfig.*.old
+
+# Keil and other embedded IDE generated files
+**/Objects/
+**/Listings/
+**/DebugConfig/
+*.uvguix
+*.uvoptx
+*.bak
+
+# Common compiler and firmware outputs
+*.elf
+*.hex
+*.bin
+*.map
+*.out
+*.o
+*.d
+
+# Python cache and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/

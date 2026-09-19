@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:3000. For a production build, run `npm run build` followed by `npm start`.
+Open http://127.0.0.1:3000. Manual WASD control is at http://127.0.0.1:3000/control. For a production build, run `npm run build` followed by `npm start`.
 
 ## What works
 
@@ -25,6 +25,7 @@ Open http://127.0.0.1:3000. For a production build, run `npm run build` followed
 - Anonymous HTTP-only session cookie, reservation recovery on refresh, and cancellation.
 - Five-second updates, connection errors, queue limits, and duplicate-name checks.
 - Authenticated robot telemetry and queue completion endpoint.
+- Live WASD drive controls over an authenticated robot WebSocket with dead-man stopping.
 
 The default robot position is **simulated and labeled demo**. The queue is real and persists to `.data/flih.json`. Demo reservations do not dispatch a robot. The corridor graph is a planning trace over the supplied floor plan; it must be field-verified and paired with localization, obstacle avoidance, and a low-level controller before autonomous operation.
 
@@ -51,6 +52,8 @@ Content-Type: application/json
 ```
 
 Coordinates are indoor floor coordinates in metres from the displayed plan's top-left origin, with +x to the right and +y down the drawing. The current calibrated bounds are derived from the floor-map calibration rather than hard-coded in the API. Status is `available`, `guiding`, or `offline`. Updates older than 30 seconds display as offline. Send `completedId` with a queue entry ID to remove that completed trip. `GET /api/flih` provides the ordered queue and current robot state; session identifiers are never returned.
+
+For manual driving, run `backend/robot_websocket.py` on the Jetson with the same key and connect it to `/ws/robot`. Browsers use the same-origin `/ws/control` channel, so the key remains server-side. Only one browser can drive at a time; releasing the controls, leaving the tab, disconnecting, or missing commands for 350 ms stops the robot. Motor speed, polarity, and serial-port setup are documented in `backend/README.md`.
 
 ## Storage and deployment
 

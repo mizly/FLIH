@@ -54,4 +54,4 @@ connectomes/**/*.py
 !connectomes/ws_small_world/generate_ws_network_new.py
 connectomes/c.elegans connectome/
 connectomes/drosophila larva connectome/
-checkpoints/
+checkpoints/**.pt
