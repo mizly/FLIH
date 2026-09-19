@@ -65,9 +65,9 @@ from shared_config import configure_optimizer
 # -----------------------------
 # DAgger Hyperparameters
 # -----------------------------
-N_DAGGER_ITERS = int(os.getenv("FLY_GYM_DAGGER_ITERS", "4"))
-EPISODES_PER_ITER = int(os.getenv("FLY_GYM_EPISODES_PER_ITER", "500"))
-TRAIN_STEPS_PER_ITER = int(os.getenv("FLY_GYM_TRAIN_STEPS_PER_ITER", "300"))
+N_DAGGER_ITERS = int(os.getenv("FLY_GYM_DAGGER_ITERS", "1"))
+EPISODES_PER_ITER = int(os.getenv("FLY_GYM_EPISODES_PER_ITER", "5"))
+TRAIN_STEPS_PER_ITER = int(os.getenv("FLY_GYM_TRAIN_STEPS_PER_ITER", "3"))
 N_ENVS = int(os.getenv("FLY_GYM_N_ENVS", "10"))  # Number of concurrent environments
 
 BATCH_SIZE = 64
