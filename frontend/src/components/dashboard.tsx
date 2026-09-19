@@ -657,7 +657,7 @@ export function Dashboard() {
           <div className="reservation-note">
             {data?.robot.demo !== false
               ? "You’re exploring the demo. The queue is shared, but the illustrated position is simulated. Hardware navigation and real pickups aren’t connected yet."
-              : "Hardware telemetry is connected. The map is an illustration; follow campus signs and the robot’s guidance."}
+              : "Hardware telemetry is connected. Floor coordinates are calibrated in metres; verify the traced corridor centreline before autonomous use."}
           </div>
           <p className="modal-footnote">
             Four wheels. Zero wings. A whole lot of potential.

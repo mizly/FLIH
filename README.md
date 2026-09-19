@@ -19,14 +19,18 @@ Open http://127.0.0.1:3000. For a production build, run `npm run build` followed
 
 ## What works
 
-- Illustrated campus map with selectable stops, zoom, and robot centering.
+- Calibrated E5/E7 sixth-floor plan with selectable indoor stops, shortest-path routing, zoom, and robot centering.
 - Shared first-in, first-out queue with custom usernames and no accounts.
 - Server-validated, single-use math captchas with five-minute expiry.
 - Anonymous HTTP-only session cookie, reservation recovery on refresh, and cancellation.
 - Five-second updates, connection errors, queue limits, and duplicate-name checks.
 - Authenticated robot telemetry and queue completion endpoint.
 
-The default robot position is **simulated and labeled demo**. The queue is real and persists to `.data/flih.json`. Demo reservations do not dispatch a robot. The illustrated map and dotted connections are schematic, not GPS-calibrated routes or an A* navigation system. Camera, lidar, obstacle avoidance, follower detection, and robot control belong in the hardware service.
+The default robot position is **simulated and labeled demo**. The queue is real and persists to `.data/flih.json`. Demo reservations do not dispatch a robot. The corridor graph is a planning trace over the supplied floor plan; it must be field-verified and paired with localization, obstacle avoidance, and a low-level controller before autonomous operation.
+
+## Floor-map calibration
+
+The complete Engineering 5/7 sixth-floor drawing is shown under a routable corridor graph. The supplied 2.5 m reference is represented by `referenceMeters` and `referencePixels` in `frontend/src/lib/campus.ts`. Change those two values after a better survey and all metre conversion, distance labels, telemetry bounds, and the scale bar update from one place. Graph nodes remain in source-image pixels so recalibration does not require moving every waypoint.
 
 ## Hardware connection
 
@@ -46,7 +50,7 @@ Content-Type: application/json
 }
 ```
 
-Coordinates use the illustrated map's 800 × 540 coordinate system. Convert hardware GPS coordinates to this map frame before sending; this app does not infer that calibration. Status is `available`, `guiding`, or `offline`. Updates older than 30 seconds display as offline. Send `completedId` with a queue entry ID to remove that completed trip. `GET /api/flih` provides the ordered queue and current robot state; session identifiers are never returned.
+Coordinates are indoor floor coordinates in metres from the displayed plan's top-left origin, with +x to the right and +y down the drawing. The current calibrated bounds are derived from the floor-map calibration rather than hard-coded in the API. Status is `available`, `guiding`, or `offline`. Updates older than 30 seconds display as offline. Send `completedId` with a queue entry ID to remove that completed trip. `GET /api/flih` provides the ordered queue and current robot state; session identifiers are never returned.
 
 ## Storage and deployment
 

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { transaction } from "@/lib/store";
-import { places, type PlaceId } from "@/lib/campus";
+import {
+  floorPlan,
+  places,
+  sourceToWorld,
+  type PlaceId,
+} from "@/lib/campus";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const demoPosition = sourceToWorld({ x: 985, y: 1410 });
 function session(req: NextRequest) {
   const existing = req.cookies.get("flih-session")?.value;
   return existing && /^[a-f0-9-]{36}$/.test(existing) ? existing : randomUUID();
@@ -61,8 +67,8 @@ export async function GET(req: NextRequest) {
                 : state.robot.status,
           }
         : {
-            x: 420 + Math.sin(Date.now() / 20000) * 45,
-            y: 257,
+            x: demoPosition.x + Math.sin(Date.now() / 20000) * 1.5,
+            y: demoPosition.y,
             battery: 86,
             status: "available",
             updatedAt: Date.now(),
@@ -117,7 +123,7 @@ export async function POST(req: NextRequest) {
       !places.some((p) => p.id === body.destination) ||
       body.pickup === body.destination
     )
-      return { error: "Choose two different campus stops." };
+      return { error: "Choose two different floor stops." };
     if (state.queue.some((entry) => entry.session === id))
       return { error: "You already have a spot in the queue." };
     if (
@@ -174,9 +180,9 @@ export async function PATCH(req: NextRequest) {
     !Number.isFinite(body.x) ||
     !Number.isFinite(body.y) ||
     body.x < 0 ||
-    body.x > 800 ||
+    body.x > floorPlan.worldWidth ||
     body.y < 0 ||
-    body.y > 540 ||
+    body.y > floorPlan.worldHeight ||
     !Number.isFinite(body.battery) ||
     body.battery < 0 ||
     body.battery > 100 ||
@@ -184,7 +190,7 @@ export async function PATCH(req: NextRequest) {
   )
     return NextResponse.json(
       {
-        error: "Provide map x (0–800), y (0–540), battery (0–100), and status.",
+        error: `Provide floor x (0–${floorPlan.worldWidth.toFixed(1)} m), y (0–${floorPlan.worldHeight.toFixed(1)} m), battery (0–100), and status.`,
       },
       { status: 400 },
     );
