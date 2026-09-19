@@ -44,16 +44,44 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .map-demo { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
 .map-art { position: relative; overflow: hidden; background: var(--cream); }
 .campus-svg { width: 100%; height: 100%; display: block; background: var(--cream); cursor: grab; touch-action: none; user-select: none; }
-.campus-svg:active, .campus-svg.is-dragging { cursor: grabbing; }
+.campus-svg:active, .campus-svg.is-dragging, .campus-svg.endpoint-drag-active { cursor: grabbing; }
 .campus-svg image { opacity: 1; pointer-events: none; }
+.floor-plan-layer > svg { overflow: visible; }
+.floor-plan-layer text { font-size: calc(44px / var(--map-zoom)) !important; transition: opacity .22s ease !important; }
+.floor-plan-layer .small-label, .floor-plan-layer .hall-label { font-size: calc(36px / var(--map-zoom)) !important; }
+.floor-plan-layer .building { font-size: calc(58px / var(--map-zoom)) !important; letter-spacing: calc(2px / var(--map-zoom)) !important; }
+.floor-plan-layer.show-standard #labels text:not(.small-label):not(.hall-label) { opacity: 1 !important; }
+.floor-plan-layer.show-detail #labels text { opacity: 1 !important; }
 .route-network { stroke: #738092; stroke-width: 3; stroke-dasharray: 9 13; opacity: .17; fill: none; }
 .active-route { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .pickup-route { stroke: #7d8792; stroke-width: 7; stroke-dasharray: 9 14; opacity: .5; }
 .destination-route { stroke: var(--blue); stroke-width: 10; stroke-dasharray: 20 13; animation: route-move 18s linear infinite; }
 @keyframes route-move { to { stroke-dashoffset: -300; } }
 .map-stop { cursor: pointer; }
+.drop-target-halo { fill: rgba(255, 246, 182, .8); stroke: var(--blue); stroke-width: 3; opacity: 0; transform-box: fill-box; transform-origin: center; pointer-events: none; }
+.endpoint-drag-active .map-stop { pointer-events: none; }
+.endpoint-drag-active .drop-target-halo { opacity: .68; animation: drop-target-breathe 1.1s ease-in-out infinite alternate; }
+.endpoint-drag-active .map-stop.is-unavailable .drop-target-halo { opacity: 0; animation: none; }
+.endpoint-drag-active .map-stop.is-nearest .drop-target-halo { fill: rgba(40, 92, 158, .22); opacity: 1; animation: drop-target-ready .62s ease-in-out infinite alternate; }
+.endpoint-drag-active .map-stop.is-nearest > circle:nth-of-type(2) { stroke: var(--blue); stroke-width: 7; }
 .map-stop:hover circle { stroke-width: 8; }
-.place-label { font-family: "Patrick Hand", cursive; font-size: 24px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: var(--paper); stroke-width: 8px; stroke-linejoin: round; fill: var(--ink); pointer-events: none; }
+.endpoint-marker { cursor: grab; }
+.endpoint-marker:hover { filter: brightness(1.04); }
+.endpoint-marker.is-dragging { cursor: grabbing; }
+.endpoint-marker-body { transform-box: fill-box; transform-origin: 50% 78%; }
+.endpoint-marker.is-dragging .endpoint-marker-body { animation: endpoint-pickup-wiggle .48s ease-in-out infinite alternate; }
+.endpoint-pickup-shadow { fill: rgba(32, 33, 36, .22); animation: endpoint-shadow-pulse .48s ease-in-out infinite alternate; pointer-events: none; }
+.endpoint-drag-hint { position: absolute; z-index: 6; left: 50%; top: 78px; transform: translateX(-50%); padding: 8px 14px; border: 1px solid rgba(32,33,36,.14); border-radius: 99px; color: var(--ink); background: rgba(255,254,250,.95); box-shadow: 0 7px 22px rgba(31,33,36,.14); font-size: 15px; font-weight: 700; pointer-events: none; white-space: nowrap; }
+@keyframes endpoint-pickup-wiggle {
+  0% { transform: translate(-1px, -10px) rotate(-4deg) scale(1.08); }
+  100% { transform: translate(1px, -13px) rotate(4deg) scale(1.12); }
+}
+@keyframes endpoint-shadow-pulse { from { opacity: .3; transform: scale(.75); } to { opacity: .14; transform: scale(1); } }
+@keyframes drop-target-breathe { from { transform: scale(.88); } to { transform: scale(1); } }
+@keyframes drop-target-ready { from { transform: scale(.95); } to { transform: scale(1.18); } }
+.endpoint-label text { fill: white; stroke: none; font-family: Arial, sans-serif; font-size: 14px; font-weight: 800; letter-spacing: 1.2px; text-anchor: middle; dominant-baseline: middle; }
+.place-label { font-family: "Patrick Hand", cursive; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: var(--paper); stroke-linejoin: round; fill: var(--ink); opacity: 0; pointer-events: none; transition: opacity .22s ease; }
+.place-label.is-visible { opacity: 1; }
 .robot-marker { filter: drop-shadow(0 7px 7px rgba(32,33,36,.2)); }
 .map-scale-mark { font-size: 24px; fill: var(--ink); stroke: var(--ink); stroke-width: 3; }
 .map-compass { position: absolute; left: 24px; bottom: 26px; width: 52px; height: 52px; border-radius: 50%; background: rgba(255,254,250,.94); border: 1px solid rgba(32,33,36,.14); display: grid; place-items: center; box-shadow: 0 6px 20px rgba(31,33,36,.12); }

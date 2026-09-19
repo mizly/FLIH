@@ -91,6 +91,19 @@ export async function POST(req: NextRequest) {
       if (mine) mine.lastSeenAt = Date.now();
       return { ok: true, active: Boolean(mine) };
     }
+    if (body.action === "update-route") {
+      const mine = state.queue.find((entry) => entry.session === id);
+      if (!mine) return { error: "Your guide request is no longer active." };
+      if (
+        !places.some((place) => place.id === body.pickup) ||
+        !places.some((place) => place.id === body.destination) ||
+        body.pickup === body.destination
+      ) return { error: "Choose two different floor stops." };
+      mine.pickup = body.pickup as PlaceId;
+      mine.destination = body.destination as PlaceId;
+      mine.lastSeenAt = Date.now();
+      return { ok: true };
+    }
     const username =
       typeof body.username === "string" ? body.username.trim() : "";
     if (!/^[\p{L}\p{N}_ .-]{2,20}$/u.test(username))

@@ -61,6 +61,42 @@ export function Dashboard() {
     setError("");
   }
 
+  async function updateQueuedRoute(nextPickup: PlaceId, nextDestination: PlaceId) {
+    if (!mine || nextPickup === nextDestination) return;
+    const previousPickup = mine.pickup;
+    const previousDestination = mine.destination;
+    setError("");
+    setData((current) => current ? {
+      ...current,
+      queue: current.queue.map((entry) => entry.id === mine.id ? { ...entry, pickup: nextPickup, destination: nextDestination } : entry),
+    } : current);
+    try {
+      const response = await fetch("/api/flih", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update-route", pickup: nextPickup, destination: nextDestination }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Couldnâ€™t update your route.");
+    } catch (updateError) {
+      setData((current) => current ? {
+        ...current,
+        queue: current.queue.map((entry) => entry.id === mine.id ? { ...entry, pickup: previousPickup, destination: previousDestination } : entry),
+      } : current);
+      setError(updateError instanceof Error ? updateError.message : "Couldnâ€™t update your route.");
+    }
+  }
+
+  function changePickup(id: PlaceId) {
+    if (mine) void updateQueuedRoute(id, shownDestination);
+    else setPickup(id);
+  }
+
+  function changeDestination(id: PlaceId) {
+    if (mine) void updateQueuedRoute(shownPickup, id);
+    else chooseDestination(id);
+  }
+
   function finishWizard() {
     if (pickup === destination) {
       setError("Choose a destination that is different from your starting point.");
@@ -129,7 +165,13 @@ export function Dashboard() {
       </header>
 
       <section className="map-workspace" aria-label="FLIH route map">
-        <CampusMap robot={data?.robot ?? null} pickup={shownPickup} destination={shownDestination} onPickup={(id) => { if (!mine) setPickup(id); }} />
+        <CampusMap
+          robot={data?.robot ?? null}
+          pickup={shownPickup}
+          destination={shownDestination}
+          onPickup={changePickup}
+          onDestination={changeDestination}
+        />
       </section>
 
       {step === "done" && (
@@ -144,12 +186,12 @@ export function Dashboard() {
           <div className="route-editor">
             <div className="route-line" aria-hidden="true"><span /><i /><span /></div>
             <label><span>Starting from</span>
-              <select aria-label="Starting from" value={shownPickup} disabled={Boolean(mine)} onChange={(event) => setPickup(event.target.value as PlaceId)}>
+              <select aria-label="Starting from" value={shownPickup} onChange={(event) => changePickup(event.target.value as PlaceId)}>
                 {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
               </select>
             </label>
             <label><span>Going to</span>
-              <select aria-label="Going to" value={shownDestination} disabled={Boolean(mine)} onChange={(event) => chooseDestination(event.target.value as PlaceId)}>
+              <select aria-label="Going to" value={shownDestination} onChange={(event) => changeDestination(event.target.value as PlaceId)}>
                 {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
               </select>
             </label>
