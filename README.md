@@ -20,8 +20,8 @@ Open http://127.0.0.1:3000. For a production build, run `npm run build` followed
 ## What works
 
 - Calibrated E5/E7 sixth-floor plan with selectable indoor stops, shortest-path routing, zoom, and robot centering.
-- Shared first-in, first-out queue with custom usernames and no accounts.
-- Server-validated, single-use math captchas with five-minute expiry.
+- Fullscreen route map with guided start and destination onboarding.
+- Editable route panel and shared first-in, first-out guide queue with no accounts.
 - Anonymous HTTP-only session cookie, reservation recovery on refresh, and cancellation.
 - Five-second updates, connection errors, queue limits, and duplicate-name checks.
 - Authenticated robot telemetry and queue completion endpoint.
@@ -54,7 +54,7 @@ Coordinates are indoor floor coordinates in metres from the displayed plan's top
 
 ## Storage and deployment
 
-Run as **one Node.js server process with a persistent writable `.data` directory**. File updates are serialized in that process and written with an atomic rename. Use a shared transactional database before deploying multiple instances, workers, or ephemeral/serverless storage. Reservations expire after 90 seconds without a browser check-in. The page checks in while it is open, so refreshing keeps your spot while closing or losing the page eventually releases it automatically. The playful math check is basic friction, not a hardened anti-bot service; use a provider such as Turnstile if abuse becomes a concern.
+Run as **one Node.js server process with a persistent writable `.data` directory**. File updates are serialized in that process and written with an atomic rename. Use a shared transactional database before deploying multiple instances, workers, or ephemeral/serverless storage. Reservations expire after 90 seconds without a browser check-in. The page checks in while it is open, so refreshing keeps your spot while closing or losing the page eventually releases it automatically.
 
 Usernames and selected stops are visible to everyone. Session cookies last seven days; there is no cross-device identity recovery.
 
@@ -66,4 +66,4 @@ npm run typecheck
 npm test
 ```
 
-Browser tests expect the local server on port 3000 and Microsoft Edge installed. They cover captcha rejection, successful reservations, another browser seeing the shared queue, refresh persistence, cancellation, mobile layout, map controls, invalid destinations, and unauthorized API requests.
+Browser tests expect the local server on port 3000 and Microsoft Edge installed. They cover the onboarding wizard, editable routes, mobile layout, map controls, captcha-free guide requests, and unauthorized API requests.

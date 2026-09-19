@@ -5,7 +5,6 @@ import type { QueueEntry, Robot } from "./campus";
 type State = {
   queue: (QueueEntry & { session: string })[];
   robot: Robot | null;
-  challenges: Record<string, { id: string; answer: string; expires: number }>;
 };
 export const RESERVATION_TIMEOUT_MS = 90 * 1000;
 const globals = globalThis as typeof globalThis & {
@@ -23,15 +22,13 @@ export function transaction<T>(
       state = JSON.parse(await readFile(filename, "utf8"));
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      state = { queue: [], robot: null, challenges: {} };
+      state = { queue: [], robot: null };
     }
     const now = Date.now();
     state.queue = state.queue.filter(
       (entry) =>
         now - (entry.lastSeenAt ?? entry.createdAt) < RESERVATION_TIMEOUT_MS,
     );
-    for (const [key, value] of Object.entries(state.challenges))
-      if (value.expires < now) delete state.challenges[key];
     const result = await fn(state);
     const temporary = `${filename}.${randomUUID()}.tmp`;
     await writeFile(temporary, JSON.stringify(state), "utf8");

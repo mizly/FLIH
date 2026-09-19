@@ -30,26 +30,6 @@ function response(data: unknown, id: string, status = 200) {
 }
 export async function GET(req: NextRequest) {
   const id = session(req);
-  if (req.nextUrl.searchParams.get("challenge") === "1") {
-    const a = Math.floor(Math.random() * 5) + 2;
-    const b = Math.floor(Math.random() * 4) + 1;
-    const challengeId = randomUUID();
-    await transaction((state) => {
-      state.challenges[id] = {
-        id: challengeId,
-        answer: String(a + b),
-        expires: Date.now() + 300000,
-      };
-    });
-    return response(
-      {
-        id: challengeId,
-        question: `I have ${a} existential crises before lunch and ${b} after. How many crises is that?`,
-        hint: "A tiny brain. A surprisingly big emotional workload.",
-      },
-      id,
-    );
-  }
   const data = await transaction((state) => {
     const mine = state.queue.find((entry) => entry.session === id);
     if (mine) mine.lastSeenAt = Date.now();
@@ -134,18 +114,6 @@ export async function POST(req: NextRequest) {
       return { error: "That name is in the queue already. Try another alias." };
     if (state.queue.length >= 30)
       return { error: "The queue is full. This little brain needs a minute." };
-    const challenge = state.challenges[id];
-    delete state.challenges[id];
-    if (
-      !challenge ||
-      challenge.id !== body.challengeId ||
-      challenge.expires < Date.now() ||
-      challenge.answer !== String(body.answer).trim()
-    )
-      return {
-        error: "Not quite! Try a fresh brain check.",
-        refreshChallenge: true,
-      };
     state.queue.push({
       id: randomUUID(),
       session: id,

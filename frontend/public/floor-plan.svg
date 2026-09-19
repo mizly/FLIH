@@ -5,7 +5,7 @@
        Scale reference: the E5 corridor from x=1256 to x=1311 is 55 px / 2.5 m.
        Pale green denotes circulation; dashed lines denote movable partitions. -->
   <style>
-    .floor,.hallway{fill:#edf1eb}
+    .floor,.hallway{fill:#f4f1e8}
     .room,.service{fill:#fff;stroke:#66706c;stroke-width:3}
     .service{fill:#f4f5f0}
     .room-fill{fill:#fff}
@@ -13,13 +13,16 @@
     .shell{stroke-width:4}
     .detail{fill:none;stroke:#929a94;stroke-width:1.5}
     .partition{fill:none;stroke:#aab2aa;stroke-width:1.5;stroke-dasharray:9 6}
-    .door-gap{fill:none;stroke:#edf1eb;stroke-width:7}
+    .door-gap{fill:none;stroke:#f4f1e8;stroke-width:7}
     .door-leaf{fill:none;stroke:#66706c;stroke-width:2}
     text{font-family:Arial,sans-serif;fill:#303633;text-anchor:middle;dominant-baseline:middle;font-size:19px}
     .small-label{font-size:14px}.hall-label{font-size:14px;fill:#72816f}
     .building{font-size:28px;font-weight:700;letter-spacing:2px}
+    #labels text{opacity:0;transition:opacity .18s ease}
+    #labels .important-label,#labels .building{opacity:1}
+    #detail:target~#labels text{opacity:1}
   </style>
-  <rect width="1590" height="2500" fill="#f8f8f2"/>
+  <rect width="1590" height="2500" fill="#f4f1e8"/>
   <g id="corridors" aria-label="Connected hallways and bridge passages" data-reference-pixels="55" data-reference-meters="2.5">
     <rect id="e7-circulation" class="floor" x="54" y="46" width="629" height="2227"/>
     <rect id="e5-circulation" class="floor" x="943" y="330" width="619" height="2108"/>
@@ -495,6 +498,8 @@
     <g transform="translate(1024 1335) rotate(180)"><path class="door-gap" d="M0 0v25"/><path class="door-leaf" d="M0 0h25"/></g>
     <g transform="translate(1024 2045) rotate(180)"><path class="door-gap" d="M0 0v25"/><path class="door-leaf" d="M0 0h25"/></g>
   </g>
+  <g id="overview" aria-hidden="true"/>
+  <g id="detail" aria-hidden="true"/>
   <g id="labels">
     <text x="107.5" y="87">6434</text>
     <text x="107.5" y="164">6432</text>
@@ -634,13 +639,13 @@
     <text class="small-label" x="1255" y="1172">5808</text>
     <text class="small-label" x="983.5" y="1316">6804</text>
     <text class="small-label" x="1040" y="1348">6001</text>
-    <text x="1155" y="1432">6002</text>
+    <text class="important-label" x="1155" y="1432">6002</text>
     <text x="1437" y="1450">6003</text>
-    <text x="1437" y="1580">6004</text>
+    <text class="important-label" x="1437" y="1580">6004</text>
     <text x="1087" y="1620">6005</text>
-    <text x="1087" y="1840">6007</text>
+    <text class="important-label" x="1087" y="1840">6007</text>
     <text x="1437" y="1800">6006</text>
-    <text x="1437" y="2090">6008</text>
+    <text class="important-label" x="1437" y="2090">6008</text>
     <text class="small-label" x="983.5" y="2026">6806</text>
     <text class="small-label" x="1040" y="2090">3006</text>
     <text x="1137" y="2118">6014</text>
