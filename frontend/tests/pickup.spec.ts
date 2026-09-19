@@ -1,24 +1,19 @@
 import { test, expect, type Page } from "@playwright/test";
 
-async function completeWizard(page: Page) {
-  await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toBeVisible();
-  await page.getByRole("button", { name: "Plan my route" }).click();
-  await expect(page.getByRole("heading", { name: "Where are you now?" })).toBeVisible();
-  await page.getByRole("radio", { name: /E7 north/i }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Where do you want to go?" })).toBeVisible();
-  await page.getByRole("radio", { name: /6004/i }).click();
-  await page.getByRole("button", { name: "Show my route" }).click();
+async function chooseRoute(page: Page) {
+  await page.getByLabel("Starting from").selectOption("dc");
+  await page.getByLabel("Going to").selectOption("e7");
 }
 
 test("guides a user from onboarding to an editable route", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
-  await completeWizard(page);
-  const collapsedPanel = page.getByRole("complementary", { name: "Your route" });
-  await expect(collapsedPanel).toHaveCSS("width", "60px");
-  await collapsedPanel.hover();
+  const routePanel = page.getByRole("complementary", { name: "Your route" });
+  await expect(routePanel).toBeVisible();
+  await expect(page.getByLabel("Starting from")).toHaveValue("");
+  await expect(page.getByLabel("Going to")).toHaveValue("");
+  await chooseRoute(page);
   await expect(page.getByRole("heading", { name: "Ready to go" })).toBeVisible();
   await expect(page.getByLabel("Starting from")).toHaveValue("dc");
   await expect(page.getByLabel("Going to")).toHaveValue("e7");
@@ -66,10 +61,20 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("mobile wizard and route panel fit the viewport", async ({ page }) => {
+test("intro opens from the FLIH menu instead of on page load", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toHaveCount(0);
+  await page.getByRole("button", { name: /FLIH/ }).click();
+  await page.getByRole("button", { name: "what is flih?" }).click();
+  await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toBeVisible();
+  await page.getByRole("button", { name: "Got it" }).click();
+  await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toHaveCount(0);
+});
+
+test("mobile route panel fits the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await completeWizard(page);
+  await chooseRoute(page);
   await expect(page.getByRole("complementary", { name: "Your route" })).toBeVisible();
   const overflow = await page.evaluate(() =>
     Array.from(document.querySelectorAll("body *:not(svg *)"))
@@ -97,9 +102,8 @@ test("queue requests no longer require a captcha", async ({ request }) => {
 
 test("an active guide request keeps route edits after dropping a marker", async ({ page }) => {
   await page.goto("/");
-  await completeWizard(page);
+  await chooseRoute(page);
   const routePanel = page.getByRole("complementary", { name: "Your route" });
-  await routePanel.hover();
   await page.getByLabel("Your name").fill(`route_${Date.now().toString().slice(-7)}`);
   await page.getByRole("button", { name: /Request guide/ }).click();
   await expect(page.getByText("Guide requested", { exact: true })).toBeVisible();
