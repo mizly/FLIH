@@ -9,19 +9,29 @@ See `TELEOP_SETUP.md` for bringing the robot up from scratch.
 ## WebSocket drive bridge
 
 `robot_websocket.py` connects the Jetson to the website and forwards live drive
-commands to the four-motor board. `motor_board.py` holds the serial protocol, and
+commands to the four-motor board. `motor_board.py` holds the protocol, and
 `motor_check.py` is a bench tool for verifying wiring before anything drives.
+
+The board is wired for **I2C at `0x26`**, not the UART in the vendor's `USART.py`
+sample. Frames reach it either through the Pico 2 relay over USB (`ROBOT_TRANSPORT=serial`,
+the path FLIH has driven on) or from the Jetson's own I2C controller
+(`ROBOT_TRANSPORT=i2c`, written but never run against hardware). Only the Pico path
+has a hardware dead-man.
 
 ```sh
 python -m pip install -r backend/requirements.txt
 export ROBOT_WS_URL=wss://your-flih-host.example/ws/robot
 export ROBOT_API_KEY='the-same-long-secret-as-the-server'
-export ROBOT_SERIAL_PORT=/dev/ttyUSB0
+export ROBOT_SERIAL_PORT=/dev/serial/by-id/usb-MicroPython_Board_in_FS_mode_<serial>-if00
+export ROBOT_MOTOR_SIGNS=-1,1,1,-1
 python backend/robot_websocket.py
 ```
 
+Use the `by-id` path rather than `/dev/ttyACM0`: the ACM index moves when the Pico
+re-enumerates, and the bridge does not survive its port disappearing.
+
 Use `ws://127.0.0.1:3000/ws/robot` locally. The protocol sends JSON drive states
-with `forward` and `turn`, each `-1`, `0`, or `1`. The robot authenticates with an
+with `forward` and `turn`, each `-1`, `0`, or `1`; positive `turn` swings right. The robot authenticates with an
 `Authorization: Bearer` header; the server never sends `ROBOT_API_KEY` to browsers.
 The bridge stops the motors when the socket closes, errors, receives invalid input,
 or gets a stop command, and releases them on exit.
@@ -37,14 +47,17 @@ python backend/motor_check.py
 It configures the board, reports pack voltage, then drives each motor on its own
 followed by the four teleop motions, printing what each step should look like. Any
 wheel that turns the wrong way gets its slot in `ROBOT_MOTOR_SIGNS` flipped to `-1`.
-Motors are numbered as the module manual numbers them:
+FLIH's harness does **not** follow the module manual's numbering:
 
-| Motor | Wheel       |
-| ----- | ----------- |
-| M1    | front left  |
-| M2    | rear left   |
-| M3    | front right |
-| M4    | rear right  |
+| Motor | Wheel       | Side |
+| ----- | ----------- | ---- |
+| M1    | rear right  | R    |
+| M2    | rear left   | L    |
+| M3    | front right | R    |
+| M4    | front left  | L    |
+
+That is what `ROBOT_MOTOR_SIDES=R,L,R,L` encodes. A wrong side map is invisible
+driving straight and shows up only as a broken turn.
 
 ## Motor profile
 
@@ -56,7 +69,11 @@ hardware changes.
 
 | Variable                   | Default | Meaning                                              |
 | -------------------------- | ------- | ---------------------------------------------------- |
-| `ROBOT_SERIAL_PORT`        | `/dev/ttyUSB0` | Board directly, or `/dev/ttyACM0` via the Pico |
+| `ROBOT_TRANSPORT`          | `serial` | `serial`: frames to the Pico relay. `i2c`: Jetson straight to the board |
+| `ROBOT_SERIAL_PORT`        | `/dev/ttyACM0` | The Pico, on the `serial` transport. Prefer the `by-id` path |
+| `ROBOT_I2C_BUS`            | `7`     | On the `i2c` transport. Orin 40-pin pins 3/5; bus 1 is pins 27/28 |
+| `ROBOT_I2C_ADDRESS`        | `0x26`  | Board address on the `i2c` transport                 |
+| `ROBOT_MOTOR_SIDES`        | `R,L,R,L` | Which side each of M1-M4 drives                    |
 | `ROBOT_DRIVE_SPEED`        | `250`   | Forward/reverse speed in mm/s (max 1000)             |
 | `ROBOT_TURN_SPEED`         | drive speed | Spin-in-place speed in mm/s                      |
 | `ROBOT_MOTOR_SIGNS`        | `1,1,1,1` | Per-motor polarity for M1–M4                       |
