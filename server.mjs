@@ -7,8 +7,9 @@ import { WebSocket, WebSocketServer } from "ws";
 const dev = process.argv.includes("--dev");
 // Render and other managed hosts proxy traffic to the process over the
 // container network, so the HTTP/WebSocket server must listen on all
-// interfaces. Keep localhost as an explicit override for local development.
-const hostname = process.env.HOSTNAME || "0.0.0.0";
+// interfaces. Do not use HOSTNAME here: managed containers often reserve that
+// variable for their own container name, which is not a bind address.
+const hostname = process.env.BIND_HOST || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 const projectDir = process.cwd();
 

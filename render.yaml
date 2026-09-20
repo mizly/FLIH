@@ -6,7 +6,7 @@ services:
     startCommand: npm start
     healthCheckPath: /health
     envVars:
-      - key: HOSTNAME
+      - key: BIND_HOST
         value: 0.0.0.0
       - key: ROBOT_API_KEY
         sync: false
