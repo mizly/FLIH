@@ -199,8 +199,8 @@ const additionalRoomWaypoints = [
 export const places = [
   {
     id: "slc",
-    name: "E7/E5 middle link — You Are Here",
-    short: "You are here",
+    name: "E7/E5 middle link",
+    short: "E7/E5 link",
     node: "midLinkCenter",
   },
   {
