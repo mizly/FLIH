@@ -21,13 +21,24 @@ vendor's Jetson sample hardcodes; bus 1 is pins 27/28. `i2cdetect -y -r 7` shoul
 show 26.
 
 The manual numbers the outputs M1 front left, M2 rear left, M3 front right, M4 rear
-right. **FLIH is not wired that way.** Its harness is:
+right. **FLIH is not wired that way**, and the end its chassis has labelled "front"
+is not the end it drives toward. The confirmed map is in hardware/MOTOR_MAP.md and
+the defaults below are those values; that file is the single source of truth, and
+this docstring is a summary of it, not a second copy to be edited on its own.
 
-    M1 rear right    M2 rear left    M3 front right    M4 front left
+Two ways to get it wrong, with very different symptoms:
 
-so the right side of the chassis is M1 and M3, and the left side is M2 and M4. Only
-the side matters for a differential drive, and a wrong side map is invisible driving
-straight - every motor gets the same value - and only shows up as a broken turn.
+    Wrong sides         Driving straight looks perfect - every wheel gets the same
+                        value - and only the turns are broken.
+    Signs and sides
+    both flipped        Forward and reverse are inverted and the turns stay
+                        *exactly* correct. Rotation about the centre is the same
+                        whichever end you call the front, so nothing you can do
+                        with A and D will reveal it. This has shipped twice.
+
+Because the second one is invisible to every check except "does W drive the way the
+robot faces", the confirmed values are the defaults here rather than something the
+operator exports by hand. tests/test_drive_mixing.py pins them.
 """
 
 import math
@@ -66,10 +77,11 @@ def number(name: str, default: float, low: float, high: float, whole: bool = Tru
 def motor_sides() -> tuple[str, ...]:
     """Which side of the chassis each of M1-M4 drives, in motor order.
 
-    Defaults to FLIH's harness rather than the manual's numbering; see the module
-    docstring. Override if the motors are ever re-plugged.
+    Defaults to FLIH's confirmed harness rather than the manual's numbering; see
+    hardware/MOTOR_MAP.md. Override only if the motors are re-plugged, and re-run
+    backend/motor_check.py if you do.
     """
-    raw = os.environ.get("ROBOT_MOTOR_SIDES", "R,L,R,L")
+    raw = os.environ.get("ROBOT_MOTOR_SIDES", "L,R,L,R")
     sides = tuple(value.strip().upper()[:1] for value in raw.split(","))
     if len(sides) != 4 or any(side not in ("L", "R") for side in sides):
         raise RuntimeError("ROBOT_MOTOR_SIDES must be four comma-separated L or R values")
@@ -77,8 +89,13 @@ def motor_sides() -> tuple[str, ...]:
 
 
 def motor_signs() -> tuple[int, ...]:
-    """Per-motor polarity for M1-M4, so a wheel wired backwards can be flipped."""
-    raw = os.environ.get("ROBOT_MOTOR_SIGNS", "1,1,1,1")
+    """Per-motor polarity for M1-M4, so a wheel wired backwards can be flipped.
+
+    Defaults to the confirmed values in hardware/MOTOR_MAP.md. These travel with
+    ROBOT_MOTOR_SIDES: flipping every sign *and* every side negates forward while
+    leaving the turns untouched, which is the failure this default exists to stop.
+    """
+    raw = os.environ.get("ROBOT_MOTOR_SIGNS", "1,-1,-1,1")
     try:
         signs = tuple(int(value) for value in raw.split(","))
     except ValueError as error:
