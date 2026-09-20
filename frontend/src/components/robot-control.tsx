@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Bot, House, Radio, RotateCcw } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Bot,
+  House,
+  Radio,
+  RotateCcw,
+} from "lucide-react";
 import { CameraFeeds } from "./camera-feeds";
 import { LidarView } from "./lidar-view";
 import { Fly } from "./fly";
@@ -20,17 +29,20 @@ export function RobotControl() {
   const [robotConnected, setRobotConnected] = useState(false);
   const [controllerAvailable, setControllerAvailable] = useState(true);
   const [message, setMessage] = useState("Connecting to control server…");
-  const enabled = connection === "connected" && robotConnected && controllerAvailable;
+  const enabled =
+    connection === "connected" && robotConnected && controllerAvailable;
 
   const sendDrive = useCallback(() => {
     const socket = socketRef.current;
     if (socket?.readyState !== WebSocket.OPEN) return;
     const keys = pressedRef.current;
-    socket.send(JSON.stringify({
-      type: "drive",
-      forward: Number(keys.has("w")) - Number(keys.has("s")),
-      turn: Number(keys.has("d")) - Number(keys.has("a")),
-    }));
+    socket.send(
+      JSON.stringify({
+        type: "drive",
+        forward: Number(keys.has("w")) - Number(keys.has("s")),
+        turn: Number(keys.has("d")) - Number(keys.has("a")),
+      }),
+    );
   }, []);
 
   const releaseAll = useCallback(() => {
@@ -40,13 +52,17 @@ export function RobotControl() {
     sendDrive();
   }, [sendDrive]);
 
-  const setKey = useCallback((key: Direction, down: boolean) => {
-    const next = new Set(pressedRef.current);
-    if (down) next.add(key); else next.delete(key);
-    pressedRef.current = next;
-    setPressed(next);
-    sendDrive();
-  }, [sendDrive]);
+  const setKey = useCallback(
+    (key: Direction, down: boolean) => {
+      const next = new Set(pressedRef.current);
+      if (down) next.add(key);
+      else next.delete(key);
+      pressedRef.current = next;
+      setPressed(next);
+      sendDrive();
+    },
+    [sendDrive],
+  );
 
   useEffect(() => {
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -55,7 +71,9 @@ export function RobotControl() {
     const connect = () => {
       setConnection("connecting");
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const socket = new WebSocket(`${protocol}//${window.location.host}/ws/control`);
+      const socket = new WebSocket(
+        `${protocol}//${window.location.host}/ws/control`,
+      );
       socketRef.current = socket;
       socket.addEventListener("open", () => {
         setConnection("connected");
@@ -67,7 +85,11 @@ export function RobotControl() {
           if (data.type === "status") {
             setRobotConnected(Boolean(data.robotConnected));
             setControllerAvailable(Boolean(data.controllerAvailable));
-            setMessage(data.robotConnected ? "Robot connected — controls are live." : "Waiting for the robot to connect.");
+            setMessage(
+              data.robotConnected
+                ? "Robot connected — controls are live."
+                : "Waiting for the robot to connect.",
+            );
           } else if (data.type === "error") {
             setMessage(data.message || "The command was rejected.");
           }
@@ -144,36 +166,94 @@ export function RobotControl() {
   return (
     <main className="control-shell">
       <header className="control-header">
-        <Link className="brand" href="/" aria-label="Back to FLIH home"><Fly small /><span>FLIH<span className="brand-dot">.</span></span></Link>
-        <Link className="control-home" href="/"><House size={18} /> Route map</Link>
+        <Link className="brand" href="/" aria-label="Back to FLIH home">
+          <Fly small />
+          <span>
+            FLIH<span className="brand-dot">.</span>
+          </span>
+        </Link>
+        <Link className="control-home" href="/">
+          <House size={18} /> Route map
+        </Link>
       </header>
 
-      <CameraFeeds />
-
-      <LidarView />
-
-      <section className="control-card" aria-labelledby="control-title">
-        <div className="control-icon"><Bot size={34} /></div>
-        <span className="wizard-eyebrow">Manual drive</span>
-        <h1 id="control-title">Take the wheel.</h1>
-        <p className="control-copy">Use WASD or hold the controls below. Releasing the keys stops FLIH immediately.</p>
-
-        <div className={`control-connection ${robotConnected ? "is-online" : ""}`} role="status" aria-live="polite">
-          <Radio size={17} />
-          <span>{message}</span>
+      <div className="cockpit-layout">
+        <div className="cockpit-vision">
+          <div className="camera-sketch-card">
+            <span className="paper-tape camera-tape" aria-hidden="true" />
+            <CameraFeeds />
+          </div>
         </div>
 
-        <div className="drive-grid" aria-label="Robot directional controls">
-          <button {...keyProps("w")} aria-label="Drive forward"><kbd>W</kbd><ArrowUp size={22} /></button>
-          <button {...keyProps("a")} aria-label="Turn left"><kbd>A</kbd><ArrowLeft size={22} /></button>
-          <button type="button" className="drive-stop" onClick={releaseAll} aria-label="Stop robot"><RotateCcw size={20} /><span>STOP</span></button>
-          <button {...keyProps("d")} aria-label="Turn right"><kbd>D</kbd><ArrowRight size={22} /></button>
-          <button {...keyProps("s")} aria-label="Drive backward"><kbd>S</kbd><ArrowDown size={22} /></button>
-        </div>
+        <aside className="cockpit-sidebar" aria-label="Flight instruments">
+          <div className="lidar-sketch-card">
+            <span className="paper-tape lidar-tape" aria-hidden="true" />
+            <div className="instrument-label">
+              <span>02</span> LiDAR notebook
+            </div>
+            <LidarView />
+          </div>
 
-        {!controllerAvailable && <p className="control-warning">Another browser currently has control.</p>}
-        <p className="control-safety">Keep the robot in sight. The server applies a 350 ms dead-man timeout if commands stop arriving.</p>
-      </section>
+          <section className="control-card" aria-labelledby="control-title">
+            <span className="control-tack" aria-hidden="true" />
+            <div className="control-title-row">
+              <div className="control-icon">
+                <Bot size={23} />
+              </div>
+              <div>
+                <span className="wizard-eyebrow">Manual drive</span>
+                <h2 id="control-title">Take the wheel.</h2>
+              </div>
+            </div>
+
+            <div
+              className={`control-connection ${robotConnected ? "is-online" : ""}`}
+              role="status"
+              aria-live="polite"
+            >
+              <Radio size={15} />
+              <span>{message}</span>
+            </div>
+
+            <div className="drive-grid" aria-label="Robot directional controls">
+              <button {...keyProps("w")} aria-label="Drive forward">
+                <kbd>W</kbd>
+                <ArrowUp size={20} />
+              </button>
+              <button {...keyProps("a")} aria-label="Turn left">
+                <kbd>A</kbd>
+                <ArrowLeft size={20} />
+              </button>
+              <button
+                type="button"
+                className="drive-stop"
+                onClick={releaseAll}
+                aria-label="Stop robot"
+              >
+                <RotateCcw size={18} />
+                <span>STOP</span>
+              </button>
+              <button {...keyProps("d")} aria-label="Turn right">
+                <kbd>D</kbd>
+                <ArrowRight size={20} />
+              </button>
+              <button {...keyProps("s")} aria-label="Drive backward">
+                <kbd>S</kbd>
+                <ArrowDown size={20} />
+              </button>
+            </div>
+
+            {!controllerAvailable && (
+              <p className="control-warning">
+                Another browser currently has control.
+              </p>
+            )}
+            <p className="control-safety">
+              WASD or press and hold · release to stop
+            </p>
+          </section>
+        </aside>
+      </div>
     </main>
   );
 }

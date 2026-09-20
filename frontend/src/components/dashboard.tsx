@@ -190,11 +190,7 @@ export function Dashboard() {
           <button id="brand-menu-action" className="brand-about" type="button" onClick={() => setIntroOpen(true)}>what is flih?</button>
         </div>
         <div className="header-actions">
-          <Link className="control-link" href="/control"><Gamepad2 size={18} /> Drive</Link>
-          <div className="live-status" aria-live="polite">
-            <span className={offline ? "status-dot offline" : "status-dot"} />
-            {connectionError ? "Reconnecting" : data ? "Live" : "Connecting"}
-          </div>
+          <Link className="control-home" href="/control"><Gamepad2 size={18} /> Drive</Link>
         </div>
       </header>
 
