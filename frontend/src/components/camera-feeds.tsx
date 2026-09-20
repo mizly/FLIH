@@ -171,7 +171,7 @@ export function CameraFeeds({ perception }: { perception: OmniReading | null }) 
         aria-live="polite"
         title={perception?.reasoning || perception?.error || undefined}
       >
-        <PerceptionIcon size={15} />
+        <PerceptionIcon size={19} />
         <span><strong>Dashboard:</strong> {perceptionStatus}</span>
         {perception?.updated_at && (
           <small>{Math.max(0, Math.round(Date.now() / 1000 - perception.updated_at))}s ago</small>
