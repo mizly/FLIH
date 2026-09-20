@@ -262,9 +262,11 @@ MuJoCo cameras, observation/action spaces, and the analytic obstacle-avoidance
 teacher without opening a window. The smoke test is useful before downloading
 the large connectome edge list.
 
-`torch`/`torchvision` were tested with a CUDA 12.8 build; if you need GPU support, install the wheel
-matching your own CUDA toolkit from https://pytorch.org/get-started/locally/ rather than relying on
-the plain PyPI wheel.
+On Windows, `setup.ps1` installs and verifies the tested CUDA 12.8 builds of
+PyTorch 2.9.0 and torchvision 0.24.0. The CUDA runtime is included in those
+wheels; an NVIDIA driver compatible with CUDA 12.8 is still required. Use
+`.\setup.ps1 -CpuOnly` only on a machine where GPU training is not required.
+A plain `pip install -r requirements.txt` may select a CPU-only PyTorch wheel.
 
 ## Data and checkpoints
 

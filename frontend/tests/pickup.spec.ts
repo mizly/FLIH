@@ -1,46 +1,41 @@
 import { test, expect, type Page } from "@playwright/test";
 
-async function completeWizard(page: Page) {
-  await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toBeVisible();
-  await page.getByRole("button", { name: "Plan my route" }).click();
-  await expect(page.getByRole("heading", { name: "Where are you now?" })).toBeVisible();
-  await page.getByRole("radio", { name: /E7 north/i }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Where do you want to go?" })).toBeVisible();
-  await page.getByRole("radio", { name: /6004/i }).click();
-  await page.getByRole("button", { name: "Show my route" }).click();
+async function chooseRoute(page: Page) {
+  await page.getByLabel("Starting from").fill("E7 north corridor");
+  await page.getByLabel("Going to").fill("Room 6004");
 }
 
 test("guides a user from onboarding to an editable route", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
-  await completeWizard(page);
-  const collapsedPanel = page.getByRole("complementary", { name: "Your route" });
-  await expect(collapsedPanel).toHaveCSS("width", "60px");
-  await collapsedPanel.hover();
+  const routePanel = page.getByRole("complementary", { name: "Your route" });
+  await expect(routePanel).toBeVisible();
+  await expect(page.getByLabel("Starting from")).toHaveValue("");
+  await expect(page.getByLabel("Going to")).toHaveValue("");
+  await chooseRoute(page);
   await expect(page.getByRole("heading", { name: "Ready to go" })).toBeVisible();
-  await expect(page.getByLabel("Starting from")).toHaveValue("dc");
-  await expect(page.getByLabel("Going to")).toHaveValue("e7");
+  await expect(page.getByLabel("Starting from")).toHaveValue("E7 north corridor");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6004");
   const initialDragCoordinates = await page.locator(".map-transform").evaluate((element) => {
     const matrix = (element as SVGGElement).getScreenCTM()!;
     const screenPoint = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(matrix);
-    return { from: screenPoint(1485, 1725), to: screenPoint(1485, 1955) };
+    return { from: screenPoint(1616, 1704), to: screenPoint(1279, 1961) };
   });
   await page.mouse.move(initialDragCoordinates.from.x, initialDragCoordinates.from.y);
   await page.mouse.down();
   await page.mouse.move(initialDragCoordinates.to.x, initialDragCoordinates.to.y, { steps: 8 });
   await page.mouse.up();
-  await expect(page.getByLabel("Going to")).toHaveValue("r6007");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6007");
   await expect(page.getByText(/m · scroll to zoom/)).toBeVisible();
-  await expect(page.locator(".destination-route")).toHaveAttribute("marker-mid", "url(#route-arrow)");
+  await expect(page.locator(".end-route")).toHaveAttribute("marker-mid", "url(#route-arrow)");
   await page.getByRole("button", { name: "Zoom out" }).click();
   await page.getByRole("button", { name: "Zoom out" }).click();
   await page.getByRole("button", { name: "Zoom out" }).click();
   const dragCoordinates = await page.locator(".map-transform").evaluate((element) => {
     const matrix = (element as SVGGElement).getScreenCTM()!;
     const screenPoint = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(matrix);
-    return { from: screenPoint(1485, 1955), to: screenPoint(1485, 2215) };
+    return { from: screenPoint(1279, 1961), to: screenPoint(1626, 2213) };
   });
   await page.mouse.move(dragCoordinates.from.x, dragCoordinates.from.y);
   await page.mouse.down();
@@ -48,9 +43,9 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
   await expect(page.locator(".endpoint-drag-hint")).toContainText("Drop END");
   await page.mouse.move(dragCoordinates.to.x, dragCoordinates.to.y, { steps: 8 });
   await expect(page.locator(".map-stop.is-nearest")).toHaveCount(1);
-  await expect(page.getByLabel("Going to")).toHaveValue("r6007");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6007");
   await page.mouse.up();
-  await expect(page.getByLabel("Going to")).toHaveValue("r6008");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6008");
   await expect(page.locator(".endpoint-marker.is-dragging")).toHaveCount(0);
   const map = page.locator(".campus-svg");
   const transformBeforeWheel = await page.locator(".map-transform").getAttribute("transform");
@@ -66,10 +61,48 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("mobile wizard and route panel fit the viewport", async ({ page }) => {
+test("room routes continue along the hallway to the destination", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Starting from").fill("Room 6414");
+  await page.getByLabel("Going to").fill("Room 6107");
+
+  const path = await page.locator(".end-route").getAttribute("d");
+  expect(path).toBe(
+    "M363.5 786.5 L363.5 645.5 L731 645.5 L993 645.5 L1256.5 645.5 L1256.5 920.5",
+  );
+});
+
+test("intro opens from the FLIH menu instead of on page load", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toHaveCount(0);
+  await page.getByRole("button", { name: /FLIH/ }).hover();
+  await expect(page.getByRole("button", { name: "what is flih?" })).toBeVisible();
+  await page.getByRole("button", { name: "what is flih?" }).click();
+  await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toBeVisible();
+  await page.getByRole("button", { name: "Got it" }).click();
+  await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toHaveCount(0);
+});
+
+test("a waypoint click opens route actions", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "View details for Room 6004" }).click();
+  const details = page.getByRole("region", { name: "Room 6004 waypoint details" });
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("button", { name: "Set as end" })).toBeVisible();
+  const positionBeforeZoom = await details.boundingBox();
+  await page.getByRole("button", { name: "Zoom out" }).click();
+  await expect(details).toBeVisible();
+  await expect.poll(async () => (await details.boundingBox())?.x).not.toBe(positionBeforeZoom?.x);
+  await details.getByRole("button", { name: "Set as start" }).click();
+  await expect(page.getByLabel("Starting from")).toHaveValue("Room 6004");
+  await page.locator(".campus-svg").click({ position: { x: 10, y: 10 } });
+  await expect(details).toHaveCount(0);
+});
+
+test("mobile route panel fits the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await completeWizard(page);
+  await chooseRoute(page);
   await expect(page.getByRole("complementary", { name: "Your route" })).toBeVisible();
   const overflow = await page.evaluate(() =>
     Array.from(document.querySelectorAll("body *:not(svg *)"))
@@ -88,7 +121,7 @@ test("mobile wizard and route panel fit the viewport", async ({ page }) => {
 
 test("queue requests no longer require a captcha", async ({ request }) => {
   const username = `test_${Date.now().toString().slice(-8)}`;
-  const join = await request.post("/api/flih", { data: { username, pickup: "dc", destination: "e7" } });
+  const join = await request.post("/api/flih", { data: { username, pickup: "dc", end: "e7" } });
   expect(join.status()).toBe(200);
   expect(await join.json()).toEqual({ ok: true });
   const telemetry = await request.patch("/api/flih", { data: { x: 1, y: 1, battery: 80, status: "available" } });
@@ -97,9 +130,8 @@ test("queue requests no longer require a captcha", async ({ request }) => {
 
 test("an active guide request keeps route edits after dropping a marker", async ({ page }) => {
   await page.goto("/");
-  await completeWizard(page);
+  await chooseRoute(page);
   const routePanel = page.getByRole("complementary", { name: "Your route" });
-  await routePanel.hover();
   await page.getByLabel("Your name").fill(`route_${Date.now().toString().slice(-7)}`);
   await page.getByRole("button", { name: /Request guide/ }).click();
   await expect(page.getByText("Guide requested", { exact: true })).toBeVisible();
@@ -107,13 +139,13 @@ test("an active guide request keeps route edits after dropping a marker", async 
   const dragCoordinates = await page.locator(".map-transform").evaluate((element) => {
     const matrix = (element as SVGGElement).getScreenCTM()!;
     const screenPoint = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(matrix);
-    return { from: screenPoint(1485, 1725), to: screenPoint(1485, 1955) };
+    return { from: screenPoint(1616, 1704), to: screenPoint(1279, 1961) };
   });
   await page.mouse.move(dragCoordinates.from.x, dragCoordinates.from.y);
   await page.mouse.down();
   await page.mouse.move(dragCoordinates.to.x, dragCoordinates.to.y, { steps: 8 });
   await page.mouse.up();
-  await expect(page.getByLabel("Going to")).toHaveValue("r6007");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6007");
   await page.waitForTimeout(5_100);
-  await expect(page.getByLabel("Going to")).toHaveValue("r6007");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6007");
 });

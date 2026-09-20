@@ -36,42 +36,66 @@ export function worldToSource(point: Point): Point {
   };
 }
 
-// Corridor centreline for the complete E5/E7 sixth-floor plan. Source-pixel
-// coordinates keep the trace aligned even when the metre calibration changes.
+// Corridor centrelines for the complete E5/E7 sixth-floor plan. The SVG is a
+// crop of the source drawing, so keep the graph in SVG-local coordinates and
+// apply the crop origin exactly once here. This also makes the values below
+// directly comparable with the corridor geometry in floor-plan.svg.
+function floorPoint(x: number, y: number): Point {
+  return {
+    x: floorPlan.sourceOrigin.x + x,
+    y: floorPlan.sourceOrigin.y + y,
+  };
+}
+
 export const routeNodes = {
-  e7NorthWest: { x: 355, y: 285 },
-  e7NorthEast: { x: 748, y: 285 },
-  e7UpperWest: { x: 355, y: 645 },
-  e7UpperEast: { x: 748, y: 645 },
-  e7MidWest: { x: 355, y: 1165 },
-  e7MidEast: { x: 748, y: 1165 },
-  e7LowerWest: { x: 355, y: 1430 },
-  e7LowerEast: { x: 748, y: 1430 },
-  e7SouthWest: { x: 355, y: 2050 },
-  e7SouthEast: { x: 748, y: 2050 },
-  e7BottomWest: { x: 355, y: 2290 },
-  e7BottomEast: { x: 748, y: 2290 },
-  upperLinkWest: { x: 860, y: 645 },
-  upperLinkEast: { x: 1115, y: 645 },
-  midLinkWest: { x: 860, y: 1410 },
-  midLinkCenter: { x: 985, y: 1410 },
-  midLinkEast: { x: 1115, y: 1410 },
-  e5MidTurn: { x: 1235, y: 1410 },
-  e5MidLink: { x: 1485, y: 1410 },
-  lowerLinkWest: { x: 860, y: 2050 },
-  lowerLinkEast: { x: 1115, y: 2050 },
-  e5UpperWest: { x: 1235, y: 645 },
-  e5UpperEast: { x: 1655, y: 645 },
-  e5NorthWest: { x: 1235, y: 645 },
-  e5NorthEast: { x: 1655, y: 645 },
-  e5MidWest: { x: 1235, y: 1210 },
-  e5MidEast: { x: 1655, y: 1210 },
-  e5Room6002: { x: 1485, y: 1510 },
-  e5Room6004: { x: 1485, y: 1725 },
-  e5Room6007: { x: 1485, y: 1955 },
-  e5LowerJunction: { x: 1485, y: 2050 },
-  e5Room6008: { x: 1485, y: 2215 },
-  e5South: { x: 1485, y: 2445 },
+  // Engineering 7: two long north/south halls, a central lobby, and a
+  // southern return. Values are the geometric centres of the visible halls.
+  e7NorthWest: floorPoint(183.5, 179.5),
+  e7NorthEast: floorPoint(551, 179.5),
+  e7UpperWest: floorPoint(183.5, 525.5),
+  e7UpperEast: floorPoint(551, 525.5),
+  e7MidWest: floorPoint(183.5, 1093.5),
+  e7MidEast: floorPoint(551, 1093.5),
+  e7LowerWest: floorPoint(183.5, 1979),
+  e7LowerEast: floorPoint(551, 1979),
+  e7SouthWest: floorPoint(183.5, 2126),
+  e7SouthEast: floorPoint(551, 2126),
+
+  // The three enclosed E7/E5 bridges.
+  upperLinkCenter: floorPoint(813, 525.5),
+  midLinkCenter: floorPoint(813, 1093.5),
+  lowerLinkCenter: floorPoint(813, 1979),
+
+  // Engineering 5 north loop and the passage around the west side of the
+  // atrium that leads into the lower-floor spine.
+  e5NorthWest: floorPoint(1076.5, 525.5),
+  e5NorthEast: floorPoint(1436, 525.5),
+  e5MidWest: floorPoint(1076.5, 1093.5),
+  e5MidEast: floorPoint(1436, 1093.5),
+  e5AtriumWest: floorPoint(1076.5, 1339),
+  e5SpineNorth: floorPoint(1283.5, 1339),
+
+  // Main lower E5 corridor. Room nodes sit at their corridor-side entrances,
+  // not in the rooms themselves, so generated routes remain walkable.
+  e5Room6003: floorPoint(1283.5, 1390),
+  e5Room6002: floorPoint(1283.5, 1432),
+  e5Room6004: floorPoint(1283.5, 1610),
+  e5Room6005: floorPoint(1283.5, 1649),
+  e5Room6007: floorPoint(1283.5, 1762),
+  e5Room6006: floorPoint(1283.5, 1931),
+  e5LowerJunction: floorPoint(1283.5, 1979),
+  e5Room6008: floorPoint(1283.5, 2090),
+  e5Room6009: floorPoint(1283.5, 2100),
+  e5SouthLoopEast: floorPoint(1283.5, 2190),
+  e5Room6011: floorPoint(1283.5, 2263),
+  e5South: floorPoint(1283.5, 2338),
+
+  // Loop serving the small south rooms and the lower bridge.
+  e5SouthLoopWestTop: floorPoint(1039.5, 1979),
+  e5Room6014: floorPoint(1039.5, 2073.5),
+  e5SouthLoopWestBottom: floorPoint(1039.5, 2190),
+  e5Room6013: floorPoint(1081.5, 2190),
+  e5Room6012: floorPoint(1226.5, 2190),
 } as const satisfies Record<string, Point>;
 
 export type RouteNodeId = keyof typeof routeNodes;
@@ -90,41 +114,92 @@ export const routeEdges = [
   ["e7LowerWest", "e7SouthWest"],
   ["e7LowerEast", "e7SouthEast"],
   ["e7SouthWest", "e7SouthEast"],
-  ["e7SouthWest", "e7BottomWest"],
-  ["e7SouthEast", "e7BottomEast"],
-  ["e7BottomWest", "e7BottomEast"],
-  ["e7UpperEast", "upperLinkWest"],
-  ["upperLinkWest", "upperLinkEast"],
-  ["upperLinkEast", "e5UpperWest"],
-  ["e7LowerEast", "midLinkWest"],
-  ["midLinkWest", "midLinkCenter"],
-  ["midLinkCenter", "midLinkEast"],
-  ["midLinkEast", "e5MidTurn"],
-  ["midLinkEast", "e5MidLink"],
-  ["e5MidWest", "e5MidTurn"],
-  ["e5MidTurn", "e5MidLink"],
-  ["e7SouthEast", "lowerLinkWest"],
-  ["lowerLinkWest", "lowerLinkEast"],
-  ["lowerLinkEast", "e5LowerJunction"],
+  ["e7UpperEast", "upperLinkCenter"],
+  ["upperLinkCenter", "e5NorthWest"],
+  ["e7MidEast", "midLinkCenter"],
+  ["midLinkCenter", "e5MidWest"],
+  ["e7LowerEast", "lowerLinkCenter"],
+  ["lowerLinkCenter", "e5LowerJunction"],
   ["e5NorthWest", "e5NorthEast"],
-  ["e5NorthWest", "e5UpperWest"],
-  ["e5NorthEast", "e5UpperEast"],
-  ["e5UpperWest", "e5UpperEast"],
-  ["e5UpperWest", "e5MidWest"],
-  ["e5UpperEast", "e5MidEast"],
+  ["e5NorthWest", "e5MidWest"],
+  ["e5NorthEast", "e5MidEast"],
   ["e5MidWest", "e5MidEast"],
-  ["e5MidLink", "e5Room6002"],
+  ["e5MidWest", "e5AtriumWest"],
+  ["e5AtriumWest", "e5SpineNorth"],
+  ["e5SpineNorth", "e5Room6003"],
+  ["e5Room6003", "e5Room6002"],
   ["e5Room6002", "e5Room6004"],
-  ["e5Room6004", "e5Room6007"],
-  ["e5Room6007", "e5LowerJunction"],
+  ["e5Room6004", "e5Room6005"],
+  ["e5Room6005", "e5Room6007"],
+  ["e5Room6007", "e5Room6006"],
+  ["e5Room6006", "e5LowerJunction"],
   ["e5LowerJunction", "e5Room6008"],
-  ["e5Room6008", "e5South"],
+  ["e5Room6008", "e5Room6009"],
+  ["e5Room6009", "e5SouthLoopEast"],
+  ["e5SouthLoopEast", "e5Room6011"],
+  ["e5Room6011", "e5South"],
+  ["e5LowerJunction", "e5SouthLoopWestTop"],
+  ["e5SouthLoopWestTop", "e5Room6014"],
+  ["e5Room6014", "e5SouthLoopWestBottom"],
+  ["e5SouthLoopWestBottom", "e5Room6013"],
+  ["e5Room6013", "e5Room6012"],
+  ["e5Room6012", "e5SouthLoopEast"],
 ] as const satisfies readonly (readonly [RouteNodeId, RouteNodeId])[];
+
+function roomWaypoint(id: string, x: number, y: number) {
+  const marker = floorPoint(x, y);
+  return {
+    id: `room-${id}`,
+    name: `Room ${id}`,
+    short: id,
+    node: nearestRouteNode(marker),
+    marker,
+    corridor: nearestCorridorLocation(marker),
+  };
+}
+
+const additionalRoomWaypoints = [
+  roomWaypoint("6434", 107.5, 87), roomWaypoint("6432", 107.5, 164), roomWaypoint("6428", 107.5, 236),
+  roomWaypoint("6426", 107.5, 308), roomWaypoint("6424", 107.5, 380), roomWaypoint("6422", 107.5, 455),
+  roomWaypoint("6418", 107.5, 525.5), roomWaypoint("6416", 107.5, 594), roomWaypoint("6414", 107.5, 666.5),
+  roomWaypoint("6412", 107.5, 738), roomWaypoint("6408", 107.5, 810), roomWaypoint("6406", 107.5, 880),
+  roomWaypoint("6404", 107.5, 950.5), roomWaypoint("6402", 107.5, 1022.5),
+  roomWaypoint("6436", 238.5, 101.5), roomWaypoint("6438", 303, 101.5), roomWaypoint("6442", 367.5, 101.5),
+  roomWaypoint("6444", 432, 101.5), roomWaypoint("6446", 496, 101.5), roomWaypoint("6448", 628.5, 95),
+  roomWaypoint("6427", 287, 255), roomWaypoint("6443", 448, 255), roomWaypoint("6423", 287, 352),
+  roomWaypoint("6447", 448, 352), roomWaypoint("6421", 287, 447), roomWaypoint("6453", 448, 447),
+  roomWaypoint("6417", 287, 620), roomWaypoint("6457", 448, 620), roomWaypoint("6411", 287, 744.5),
+  roomWaypoint("6459", 448, 744.5), roomWaypoint("6452", 628.5, 189), roomWaypoint("6454", 628.5, 261),
+  roomWaypoint("6456", 628.5, 594), roomWaypoint("6458", 628.5, 666.5), roomWaypoint("6462", 628.5, 738),
+  roomWaypoint("6464", 628.5, 810), roomWaypoint("6466", 628.5, 882), roomWaypoint("6468", 628.5, 952.5),
+  roomWaypoint("6472", 628.5, 1025.5),
+  roomWaypoint("6109", 999, 412), roomWaypoint("6111", 1155, 412), roomWaypoint("6112", 1309.5, 412),
+  roomWaypoint("6118", 1411.5, 377), roomWaypoint("6119", 1510.5, 407), roomWaypoint("6117", 1380.5, 576),
+  roomWaypoint("6123", 1380.5, 642.5), roomWaypoint("6113", 1140.5, 602.5), roomWaypoint("6114", 1219.5, 623.5),
+  roomWaypoint("6116", 1302, 623.5), roomWaypoint("6108", 1140.5, 693.5), roomWaypoint("6106", 1140.5, 806.5),
+  roomWaypoint("6127", 1298, 782), roomWaypoint("6107", 999, 800.5), roomWaypoint("6104", 999, 882.5),
+  roomWaypoint("6103", 999, 954), roomWaypoint("6102", 999, 1027), roomWaypoint("6121", 1510.5, 522.5),
+  roomWaypoint("6122", 1510.5, 596), roomWaypoint("6124", 1510.5, 684.5), roomWaypoint("6126", 1510.5, 792),
+  roomWaypoint("6128", 1510.5, 882), roomWaypoint("6129", 1510.5, 952.5), roomWaypoint("6131", 1510.5, 1025.5),
+  roomWaypoint("6302", 107.5, 1338.5), roomWaypoint("6304", 107.5, 1413), roomWaypoint("6306", 107.5, 1485.5),
+  roomWaypoint("6308", 107.5, 1557), roomWaypoint("6312", 107.5, 1625.5), roomWaypoint("6314", 107.5, 1693.5),
+  roomWaypoint("6316", 107.5, 1765), roomWaypoint("6318", 107.5, 1839), roomWaypoint("6322", 107.5, 1912),
+  roomWaypoint("6303", 381, 1390.5), roomWaypoint("6309", 287, 1547), roomWaypoint("6353", 448, 1547),
+  roomWaypoint("6311", 287, 1657.5), roomWaypoint("6349", 448, 1657.5), roomWaypoint("6313", 287, 1750),
+  roomWaypoint("6347", 448, 1750), roomWaypoint("6317", 287, 1848), roomWaypoint("6343", 448, 1848),
+  roomWaypoint("6321", 287, 1946), roomWaypoint("6339", 448, 1946), roomWaypoint("6362", 628.5, 1338.5),
+  roomWaypoint("6358", 628.5, 1413), roomWaypoint("6356", 628.5, 1485.5), roomWaypoint("6354", 628.5, 1557),
+  roomWaypoint("6352", 628.5, 1625.5), roomWaypoint("6348", 628.5, 1693.5), roomWaypoint("6346", 628.5, 1763),
+  roomWaypoint("6344", 628.5, 1833), roomWaypoint("6342", 628.5, 1937), roomWaypoint("6326", 236.5, 2209),
+  roomWaypoint("6328", 303, 2207), roomWaypoint("6332", 365.5, 2202.5), roomWaypoint("6334", 428, 2202.5),
+  roomWaypoint("6336", 494, 2202.5), roomWaypoint("6323", 287, 2046), roomWaypoint("6333", 448, 2048),
+  roomWaypoint("6324", 128, 2229.5), roomWaypoint("6338", 605.5, 2223),
+] as const;
 
 export const places = [
   {
     id: "slc",
-    name: "E7/E5 link — You Are Here",
+    name: "E7/E5 middle link — You Are Here",
     short: "You are here",
     node: "midLinkCenter",
   },
@@ -138,7 +213,7 @@ export const places = [
     id: "dp",
     name: "E7 south corridor",
     short: "E7 south",
-    node: "e7BottomEast",
+    node: "e7LowerEast",
   },
   {
     id: "ml",
@@ -152,21 +227,61 @@ export const places = [
     short: "E5 south",
     node: "e5South",
   },
-  { id: "e7", name: "Room 6004", short: "6004", node: "e5Room6004" },
-  { id: "r6002", name: "Room 6002", short: "6002", node: "e5Room6002" },
-  { id: "r6007", name: "Room 6007", short: "6007", node: "e5Room6007" },
-  { id: "r6008", name: "Room 6008", short: "6008", node: "e5Room6008" },
+  { id: "e7Upper", name: "E7 upper corridor", short: "E7 upper", node: "e7UpperWest" },
+  { id: "e7Mid", name: "E7 middle corridor", short: "E7 middle", node: "e7MidWest" },
+  { id: "upperBridge", name: "Upper E7/E5 bridge", short: "Upper bridge", node: "upperLinkCenter" },
+  { id: "lowerBridge", name: "Lower E7/E5 bridge", short: "Lower bridge", node: "lowerLinkCenter" },
+  { id: "e5Atrium", name: "E5 atrium", short: "E5 atrium", node: "e5AtriumWest" },
+  { id: "e5Junction", name: "E5 lower junction", short: "E5 junction", node: "e5LowerJunction" },
+  { id: "southLoop", name: "E5 south loop", short: "South loop", node: "e5SouthLoopWestTop" },
+  { id: "e7", name: "Room 6004", short: "6004", node: "e5Room6004", marker: floorPoint(1436, 1584) },
+  { id: "r6002", name: "Room 6002", short: "6002", node: "e5Room6002", marker: floorPoint(1155, 1432) },
+  { id: "r6003", name: "Room 6003", short: "6003", node: "e5Room6003", marker: floorPoint(1446, 1443) },
+  { id: "r6005", name: "Room 6005", short: "6005", node: "e5Room6005", marker: floorPoint(1099, 1628) },
+  { id: "r6006", name: "Room 6006", short: "6006", node: "e5Room6006", marker: floorPoint(1446, 1834) },
+  { id: "r6007", name: "Room 6007", short: "6007", node: "e5Room6007", marker: floorPoint(1099, 1841) },
+  { id: "r6008", name: "Room 6008", short: "6008", node: "e5Room6008", marker: floorPoint(1446, 2093) },
+  { id: "r6009", name: "Room 6009", short: "6009", node: "e5Room6009", marker: floorPoint(1215, 2112) },
+  { id: "r6011", name: "Room 6011", short: "6011", node: "e5Room6011", marker: floorPoint(1436, 2338) },
+  { id: "r6012", name: "Room 6012", short: "6012", node: "e5Room6012", marker: floorPoint(1177, 2325) },
+  { id: "r6013", name: "Room 6013", short: "6013", node: "e5Room6013", marker: floorPoint(1020, 2325) },
+  { id: "r6014", name: "Room 6014", short: "6014", node: "e5Room6014", marker: floorPoint(1136, 2112) },
+  ...additionalRoomWaypoints,
 ] as const satisfies readonly {
   id: string;
   name: string;
   short: string;
   node: RouteNodeId;
+  marker?: Point;
+  corridor?: CorridorLocation;
 }[];
 
 export type PlaceId = (typeof places)[number]["id"];
 
 function distance(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+type CorridorLocation = {
+  point: Point;
+  edge: readonly [RouteNodeId, RouteNodeId];
+};
+
+function nearestCorridorLocation(point: Point): CorridorLocation {
+  return routeEdges.reduce<CorridorLocation>((nearest, edge) => {
+    const start = routeNodes[edge[0]];
+    const end = routeNodes[edge[1]];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    const progress = lengthSquared === 0
+      ? 0
+      : Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+    const projected = { x: start.x + progress * dx, y: start.y + progress * dy };
+    return distance(point, projected) < distance(point, nearest.point)
+      ? { point: projected, edge }
+      : nearest;
+  }, { point: routeNodes[routeEdges[0][0]], edge: routeEdges[0] });
 }
 
 export function nearestRouteNode(point: Point): RouteNodeId {
@@ -225,21 +340,64 @@ export function routePoints(from: RouteNodeId, to: RouteNodeId): Point[] {
   return findRoute(from, to).map((id) => routeNodes[id]);
 }
 
-export function routeLengthMeters(points: Point[]) {
-  return (
-    points.reduce(
-      (total, point, index) =>
-        index === 0 ? total : total + distance(points[index - 1], point),
-      0,
-    ) / pixelsPerMeter
+type RoutablePlace = {
+  node: RouteNodeId;
+  corridor?: CorridorLocation;
+};
+
+function samePoint(a: Point, b: Point) {
+  return a.x === b.x && a.y === b.y;
+}
+
+function withoutRepeatedPoints(points: Point[]) {
+  return points.filter((point, index) => index === 0 || !samePoint(point, points[index - 1]));
+}
+
+/** Route between room-level corridor positions instead of stopping at a junction. */
+export function routePointsForPlaces(from: RoutablePlace, to: RoutablePlace): Point[] {
+  const fromPoint = from.corridor?.point ?? routeNodes[from.node];
+  const toPoint = to.corridor?.point ?? routeNodes[to.node];
+  const fromConnections = from.corridor
+    ? from.corridor.edge.map((node) => ({ node, cost: distance(fromPoint, routeNodes[node]) }))
+    : [{ node: from.node, cost: 0 }];
+  const toConnections = to.corridor
+    ? to.corridor.edge.map((node) => ({ node, cost: distance(toPoint, routeNodes[node]) }))
+    : [{ node: to.node, cost: 0 }];
+
+  let shortest = { cost: Infinity, points: [fromPoint] };
+  for (const start of fromConnections) {
+    for (const end of toConnections) {
+      const middle = routePoints(start.node, end.node);
+      const points = withoutRepeatedPoints([fromPoint, ...middle, toPoint]);
+      const cost = start.cost + routeLengthPixels(middle) + end.cost;
+      if (cost < shortest.cost) shortest = { cost, points };
+    }
+  }
+
+  if (from.corridor && to.corridor && from.corridor.edge === to.corridor.edge) {
+    const directCost = distance(fromPoint, toPoint);
+    if (directCost < shortest.cost) shortest = { cost: directCost, points: withoutRepeatedPoints([fromPoint, toPoint]) };
+  }
+
+  return shortest.points;
+}
+
+function routeLengthPixels(points: Point[]) {
+  return points.reduce(
+    (total, point, index) => index === 0 ? total : total + distance(points[index - 1], point),
+    0,
   );
+}
+
+export function routeLengthMeters(points: Point[]) {
+  return routeLengthPixels(points) / pixelsPerMeter;
 }
 
 export type QueueEntry = {
   id: string;
   username: string;
   pickup: PlaceId;
-  destination: PlaceId;
+  end: PlaceId;
   createdAt: number;
   lastSeenAt?: number;
 };

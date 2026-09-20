@@ -96,11 +96,11 @@ export async function POST(req: NextRequest) {
       if (!mine) return { error: "Your guide request is no longer active." };
       if (
         !places.some((place) => place.id === body.pickup) ||
-        !places.some((place) => place.id === body.destination) ||
-        body.pickup === body.destination
+        !places.some((place) => place.id === body.end) ||
+        body.pickup === body.end
       ) return { error: "Choose two different floor stops." };
       mine.pickup = body.pickup as PlaceId;
-      mine.destination = body.destination as PlaceId;
+      mine.end = body.end as PlaceId;
       mine.lastSeenAt = Date.now();
       return { ok: true };
     }
@@ -113,8 +113,8 @@ export async function POST(req: NextRequest) {
       };
     if (
       !places.some((p) => p.id === body.pickup) ||
-      !places.some((p) => p.id === body.destination) ||
-      body.pickup === body.destination
+      !places.some((p) => p.id === body.end) ||
+      body.pickup === body.end
     )
       return { error: "Choose two different floor stops." };
     if (state.queue.some((entry) => entry.session === id))
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       session: id,
       username,
       pickup: body.pickup as PlaceId,
-      destination: body.destination as PlaceId,
+      end: body.end as PlaceId,
       createdAt: Date.now(),
       lastSeenAt: Date.now(),
     });

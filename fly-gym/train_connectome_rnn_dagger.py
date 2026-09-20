@@ -17,6 +17,8 @@ from agents.teacher_analytic_agent import PlannerAnalyticTeacher
 from agents.connectome_rnn_agent import ConnectomeAgent
 from robot_config import LIDAR_CONFIG, LIDAR_FEATURE_BINS, ROBOT_RADIUS, training_robot_metadata
 from training_telemetry import TrainingTelemetry
+from optimization_progress import OptimizationProgress
+from checkpoint_selection import resolve_resume_checkpoint
 
 telemetry = None
 from core.utils import (
@@ -65,16 +67,18 @@ from shared_config import configure_optimizer
 # -----------------------------
 # DAgger Hyperparameters
 # -----------------------------
-N_DAGGER_ITERS = int(os.getenv("FLY_GYM_DAGGER_ITERS", "4"))
-EPISODES_PER_ITER = int(os.getenv("FLY_GYM_EPISODES_PER_ITER", "500"))
-TRAIN_STEPS_PER_ITER = int(os.getenv("FLY_GYM_TRAIN_STEPS_PER_ITER", "300"))
+N_DAGGER_ITERS = int(os.getenv("FLY_GYM_DAGGER_ITERS", "10"))
+EPISODES_PER_ITER = int(os.getenv("FLY_GYM_EPISODES_PER_ITER", "20"))
+TRAIN_STEPS_PER_ITER = int(os.getenv("FLY_GYM_TRAIN_STEPS_PER_ITER", "10"))
 N_ENVS = int(os.getenv("FLY_GYM_N_ENVS", "10"))  # Number of concurrent environments
 
-BATCH_SIZE = 64
-GRAD_ACCUM_STEPS = 2  # Number of mini-batches to accumulate before optimizer step (BATCH_SIZE*GRAD_ACCUM_STEPS=128, matches paper)
+BATCH_SIZE = 32
+# Two smaller passes reduce peak memory while preserving an effective batch of
+# 64 sequences per optimizer update (32 * 2).
+GRAD_ACCUM_STEPS = 2
 
 T_UNROLL = 80
-T_BURN = 50
+T_BURN = 30  # Warm-up context; 110 total steps with the 80 supervised steps above.
 LR = 3e-4
 
 BETA_START = 1.0 # 1.0: teacher drive, 0.0: agent drive
@@ -109,7 +113,7 @@ LOSS_CSV_PATH = os.path.join(LOSS_DIR, "connectome_rnn_dagger_loss.csv")
 FINAL_CHECKPOINT_PATH = os.path.join(CHECKPOINT_DIR, "connectome_rnn_dagger_princeton.pt")
 
 # Path to checkpoint to resume from (set to None to train from scratch)
-RESUME_CHECKPOINT_PATH = None
+RESUME_CHECKPOINT_PATH = "latest"  # Newest iteration/final weights; None starts fresh.
 
 
 def maybe_show_cameras(obs):
@@ -656,6 +660,9 @@ def rollout_and_collect_balanced(
 
     total_chunks = {'straight': 0, 'turn': 0, 'collision': 0, 'pre_collision': 0, 'start': 0}
     episodes_done = 0
+    termination_counts = {}
+    short_episodes = 0
+    termination_reasons = [None] * n_envs
 
     # ---- per-env mutable state ----
     obs_list      = [None] * n_envs          # latest raw obs
@@ -725,7 +732,12 @@ def rollout_and_collect_balanced(
         for i in range(n_envs):
             if not active[i]:
                 continue
-            obs, reward, done_flags[i], trunc_flags[i], _ = envs[i].step(action_exec[i])
+            obs, reward, done_flags[i], trunc_flags[i], info = envs[i].step(action_exec[i])
+            termination_reasons[i] = (
+                "goal" if info.get("dist_to_goal", math.inf) < envs[i].goal_radius else
+                "stall" if info.get("stalled", False) else
+                "timeout" if trunc_flags[i] else "environment_done" if done_flags[i] else None
+            )
             episode_rewards[i] += reward
             episode_collisions[i] |= bool(obs["sensors"]["collision"])
             if telemetry:
@@ -807,6 +819,7 @@ def rollout_and_collect_balanced(
             teacher_action = teachers[i].act(envs[i])
             if teacher_action is None:
                 active[i] = False
+                termination_reasons[i] = "teacher_no_action"
             else:
                 teacher_act_buf[i].append(teacher_action.copy())
 
@@ -816,8 +829,12 @@ def rollout_and_collect_balanced(
                 continue
             teacher_action = teacher_act_buf[i][-1]
 
-            if teachers[i]._rec_phase is not None:
+            recovering = (teachers[i]._rec_phase is not None or
+                          getattr(teachers[i], "force_teacher_action", False))
+            if recovering:
                 action_exec[i] = teacher_action
+                noise_disturbing[i] = False
+                noise_steps[i] = 0
             elif not need_student:
                 action_exec[i] = teacher_action
             else:
@@ -826,7 +843,7 @@ def rollout_and_collect_balanced(
 
             # Noise injection
             if (not noise_disturbing[i]
-                    and teachers[i]._rec_phase is None
+                    and not recovering
                     and steps[i] % NOISE_INTERVAL == 1):
                 noise_disturbing[i] = True
                 noise_steps[i] = 0
@@ -848,6 +865,12 @@ def rollout_and_collect_balanced(
             raw_obs = raw_obs_buf[i]
             proc_obs = proc_obs_buf[i]
             t_acts = teacher_act_buf[i]
+            # A teacher failure can leave an observation without a target label.
+            labelled = min(len(raw_obs), len(proc_obs), len(t_acts))
+            raw_obs, proc_obs, t_acts = raw_obs[:labelled], proc_obs[:labelled], t_acts[:labelled]
+            short_episodes += int(labelled < chunk_length)
+            reason = termination_reasons[i] or "unknown"
+            termination_counts[reason] = termination_counts.get(reason, 0) + 1
 
             valid = len(raw_obs) > 0 and len(t_acts) > 0
             if valid and len(raw_obs) >= chunk_length:
@@ -866,7 +889,8 @@ def rollout_and_collect_balanced(
             if telemetry:
                 distance = float(np.linalg.norm(envs[i]._goal_xy - envs[i]._base_xy()))
                 telemetry.episode(reward=episode_rewards[i], steps=steps[i],
-                    success=distance < envs[i].goal_radius, collision=episode_collisions[i], distance=distance)
+                    success=distance < envs[i].goal_radius, collision=episode_collisions[i], distance=distance,
+                    termination_reason=reason)
                 telemetry.update(episodes_in_iteration=episodes_done, buffer_counts=buffer.get_counts())
             if episodes_done % 10 == 0 or episodes_done == EPISODES_PER_ITER:
                 elapsed = _time.perf_counter() - t0
@@ -929,10 +953,19 @@ def rollout_and_collect_balanced(
                 h[:] = 0.0
 
     print()  # newline after progress
+    print(f"[rollout] End reasons: {termination_counts}; episodes shorter than {chunk_length}: "
+          f"{short_episodes}/{episodes_done}; new replay sequences: {sum(total_chunks.values())}")
+    if not sum(total_chunks.values()):
+        print("[warn] No new replay sequences collected; optimization will reuse existing data.")
     return total_chunks
 
 
-def train_step(agent, buffer, opt, accum_steps=GRAD_ACCUM_STEPS):
+def train_step(agent, buffer, opt, accum_steps=GRAD_ACCUM_STEPS, progress_label="update"):
+    with OptimizationProgress(progress_label, accum_steps) as progress:
+        return _train_step_impl(agent, buffer, opt, accum_steps, progress)
+
+
+def _train_step_impl(agent, buffer, opt, accum_steps, progress):
     """
     Single training step with gradient accumulation.
     
@@ -953,8 +986,11 @@ def train_step(agent, buffer, opt, accum_steps=GRAD_ACCUM_STEPS):
     total_loss = 0.0
     
     for accum_idx in range(accum_steps):
+        batch_label = f"batch {accum_idx + 1}/{accum_steps}"
+        progress.update(accum_idx * 3, f"{batch_label}: sampling")
         # Sample a batch using balanced sampling
         xs, ys = buffer.sample_balanced_sequences(batch_size=BATCH_SIZE)
+        progress.update(accum_idx * 3 + 1, f"{batch_label}: forward")
         # print(f"Sampled batch of size {xs.shape[1]}", end="", flush=True)
         mu = forward_policy_sequence(agent, xs)
         
@@ -975,6 +1011,7 @@ def train_step(agent, buffer, opt, accum_steps=GRAD_ACCUM_STEPS):
         scaled_loss = loss / accum_steps
         
         # Backward pass (accumulates gradients)
+        progress.update(accum_idx * 3 + 2, f"{batch_label}: backward")
         scaled_loss.backward()
         
         # Track unscaled loss for logging
@@ -992,8 +1029,10 @@ def train_step(agent, buffer, opt, accum_steps=GRAD_ACCUM_STEPS):
         print("Warning: RNN bias has no gradients!")
     
     # Clip gradients and update weights (once per train_step call)
+    progress.update(accum_steps * 3, "gradient clipping / optimizer")
     torch.nn.utils.clip_grad_norm_(agent.parameters(), 2.0)
     opt.step()
+    progress.update(progress.total, f"done | loss={total_loss / accum_steps:.5f}")
     
     # Return average loss over accumulation steps
     return total_loss / accum_steps
@@ -1041,15 +1080,18 @@ def _train():
         input_scale_init=INPUT_SCALE_INIT
     ).to(device)
 
-    # Load checkpoint if specified
-    if RESUME_CHECKPOINT_PATH is not None:
-        if os.path.exists(RESUME_CHECKPOINT_PATH):
-            print(f"[ckpt] Loading checkpoint from {RESUME_CHECKPOINT_PATH}")
-            checkpoint = torch.load(RESUME_CHECKPOINT_PATH, map_location=device)
-            agent.load_state_dict(checkpoint)
-            print(f"[ckpt] Successfully loaded checkpoint")
-        else:
-            print(f"[ckpt] Warning: Checkpoint not found at {RESUME_CHECKPOINT_PATH}, starting from scratch")
+    # Load once at startup. Iterations continue using the current in-memory weights.
+    resume_path = resolve_resume_checkpoint(
+        RESUME_CHECKPOINT_PATH, CHECKPOINT_DIR, FINAL_CHECKPOINT_PATH
+    )
+    if resume_path is not None:
+        print(f"[ckpt] Loading checkpoint from {resume_path}")
+        checkpoint = torch.load(resume_path, map_location=device, weights_only=True)
+        agent.load_state_dict(checkpoint)
+        del checkpoint
+        print("[ckpt] Loaded weights; optimizer, replay buffer and DAgger schedule start fresh")
+    else:
+        print("[ckpt] Starting from scratch (resume disabled or no saved checkpoint)")
 
     # Create N_ENVS environments and teachers
     envs = [_make_env(render_mode=RENDER_MODE if i == 0 else None)
@@ -1096,14 +1138,15 @@ def _train():
             for step_idx in range(TRAIN_STEPS_PER_ITER):
                 
                 try:
-                    loss = train_step(agent, buffer, opt)
+                    loss = train_step(
+                        agent, buffer, opt,
+                        progress_label=f"iter {it + 1}/{N_DAGGER_ITERS}, step {step_idx + 1}/{TRAIN_STEPS_PER_ITER}",
+                    )
                     losses.append(loss)
                     if telemetry:
                         telemetry.loss(loss, step_idx + 1)
                 except ValueError:
                     break
-                print(f"\r[train] Trained step {step_idx+1}/{TRAIN_STEPS_PER_ITER}, loss={loss:.5f}. Dagger iter {it+1}/{N_DAGGER_ITERS}", end="", flush=True)
-                if (step_idx+1 == TRAIN_STEPS_PER_ITER): print()  # Newline after last step
             # plot losses curve
             if losses:
                 plt.plot(losses)
