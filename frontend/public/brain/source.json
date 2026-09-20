@@ -1,0 +1,20 @@
+{
+  "commit": "d0da95123ee606e204ae2c702e7bc78538646fbd",
+  "source": "https://raw.githubusercontent.com/flyconnectome/fafbseg-py/d0da95123ee606e204ae2c702e7bc78538646fbd/fafbseg/data/JFRC2NP.surf.fw.zip",
+  "regions": 78,
+  "description": "JFRC2 neuropil template meshes transformed to FlyWire FAFB14.1 space by fafbseg. Not individual neuron reconstructions.",
+  "original_atlas": "https://doi.org/10.5281/zenodo.10567",
+  "transform": {
+    "center_nm": [
+      489683.8671875,
+      254135.48828125,
+      133747.79858398438
+    ],
+    "scale": 7.429295022006675e-06,
+    "axis_signs": [
+      1,
+      -1,
+      -1
+    ]
+  }
+}

@@ -60,9 +60,11 @@ class TrainingTelemetry:
                          for index, value, magnitude in zip(indices, values, magnitudes)])
             json.dumps(sample, allow_nan=False)
             self.data["neural_activity"] = sample
-        except Exception:
+        except Exception as exc:
             # Optional observability must never put the training run at risk.
             self.activity_enabled = False
+            self.data["neural_activity_error"] = type(exc).__name__
+            warnings.warn(f"Neural activity telemetry disabled: {exc}")
         finally:
             self.lock.release()
 

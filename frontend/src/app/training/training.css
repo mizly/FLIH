@@ -523,7 +523,7 @@ td .training-muted {
   font-variant-numeric: tabular-nums;
 }
 .training-scene-empty {
-  min-height: 250px;
+  min-height: 330px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -605,33 +605,83 @@ td .training-muted {
 }
 .training-brain-stage {
   position: relative;
-  min-height: 300px;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  background: radial-gradient(
-    circle at 50% 46%,
-    #244047 0,
-    #13262c 48%,
-    #0e1a1f 100%
-  );
+  height: 390px;
+  min-height: 390px;
+  background: #0b1418;
+  border: 1px solid #26393f;
   border-radius: 10px;
   overflow: hidden;
 }
-.training-brain-stage::after {
-  content: "";
+.brain-viewport {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  background-image: linear-gradient(#ffffff07 1px, transparent 1px);
-  background-size: 100% 5px;
-  opacity: 0.35;
 }
-.training-brain-stage svg {
-  width: 100%;
-  height: auto;
+.brain-viewport canvas {
   display: block;
-  overflow: visible;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.brain-viewport canvas:active {
+  cursor: grabbing;
+}
+.brain-viewport canvas:focus-visible {
+  outline: 2px solid #77cdbb;
+  outline-offset: -3px;
+}
+.brain-load-message {
+  position: absolute;
+  inset: 40% 20px auto;
+  text-align: center;
+  color: #bdd1d5;
+  font-size: 12px;
+  pointer-events: none;
+}
+.brain-view-controls {
+  position: absolute;
+  top: 42px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  gap: 4px;
+}
+.brain-view-controls > span {
+  flex: 1;
+}
+.brain-view-controls button {
+  border: 1px solid #354a51;
+  border-radius: 5px;
+  padding: 6px 9px;
+  background: #112128e6;
+  color: #b6cbd0;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  min-height: 30px;
+}
+.brain-view-controls button:hover,
+.brain-view-controls button[aria-pressed="true"] {
+  background: #29434a;
+  color: #effffe;
+}
+.brain-view-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.brain-view-controls button:focus-visible {
+  outline: 2px solid #77cdbb;
+  outline-offset: 2px;
+}
+.brain-interaction-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 14px;
+  width: 155px;
+  color: #829b9e;
+  font-size: 10px;
+  line-height: 1.7;
+  pointer-events: none;
 }
 .training-brain-status {
   position: absolute;
@@ -655,47 +705,6 @@ td .training-muted {
 .training-brain-status span {
   background: #71d4bc;
   box-shadow: 0 0 8px #71d4bc;
-}
-.training-brain-lobes ellipse,
-.training-brain-lobes path {
-  fill: url(#brain-glow);
-  stroke: #6d969a42;
-  stroke-width: 0.8;
-}
-.training-brain-lobes path {
-  fill: none;
-}
-.training-brain-edges line {
-  stroke: #7ba2a8;
-  stroke-width: 0.38;
-  opacity: 0.2;
-}
-.training-brain-edges line.is-signal {
-  stroke: #76d4c0;
-  stroke-width: 1;
-  opacity: 0.65;
-}
-.training-brain-nodes circle {
-  fill: #a9bec0;
-  stroke-width: 0.8;
-}
-.training-brain-nodes .sensory {
-  stroke: #84d5f0;
-}
-.training-brain-nodes .descending {
-  stroke: #f0c865;
-}
-.training-brain-nodes .has-activity {
-  filter: url(#node-glow);
-}
-.training-brain-nodes .positive {
-  fill: #6bd8c1;
-}
-.training-brain-nodes .negative {
-  fill: #f0a16f;
-}
-.training-brain-nodes .unmeasured {
-  fill: #9db0b1;
 }
 .training-brain-count {
   position: absolute;
@@ -804,6 +813,6 @@ td .training-muted {
 }
 @media (max-width: 540px) {
   .training-brain-stage {
-    min-height: 250px;
+    min-height: 330px;
   }
 }

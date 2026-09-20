@@ -656,7 +656,10 @@ def rollout_and_collect_balanced(
     agent.eval()
     n_envs = len(envs)
     preview_episodes = [0] * n_envs
-    need_student = beta < 1.0
+    # Keep the connectome state truthful and observable even while the teacher
+    # supplies 100% of the executed actions. With telemetry disabled, preserve
+    # the old optimization of skipping student inference at beta == 1.
+    need_student = beta < 1.0 or bool(telemetry and telemetry.activity_enabled)
 
     total_chunks = {'straight': 0, 'turn': 0, 'collision': 0, 'pre_collision': 0, 'start': 0}
     episodes_done = 0

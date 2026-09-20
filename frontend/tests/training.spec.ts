@@ -144,7 +144,87 @@ test("training dashboard desktop screenshot", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/training");
   await expect(page.getByRole("status")).toHaveText("Live training");
+  await expect(page.locator(".brain-viewport")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
   await page.screenshot({ path: "test-results/training-dashboard.png" });
+});
+
+test("FAFB anatomy loads locally and rotates, zooms, and changes surface mode", async ({
+  page,
+}) => {
+  await page.route("**/api/training", (route) =>
+    route.fulfill({ json: { run: fixture(), stale: false } }),
+  );
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/training");
+  await expect(page.locator(".brain-viewport")).toHaveAttribute(
+    "data-ready",
+    "true",
+  );
+  const canvas = page.locator(".brain-viewport canvas");
+  const pixels = () =>
+    canvas.evaluate((el) => (el as HTMLCanvasElement).toDataURL());
+  const front = await pixels();
+  await page.getByRole("button", { name: "Side brain view" }).click();
+  await expect.poll(pixels).not.toBe(front);
+  await page.getByRole("button", { name: "Front brain view" }).click();
+  await expect.poll(pixels).toBe(front);
+  await canvas.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(pixels).not.toBe(front);
+  await page.keyboard.press("Home");
+  await expect.poll(pixels).toBe(front);
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    box.x + box.width / 2 + 65,
+    box.y + box.height / 2 + 25,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect.poll(pixels).not.toBe(front);
+  const rotated = await pixels();
+  await page.getByRole("button", { name: "Zoom in on brain" }).click();
+  await expect.poll(pixels).not.toBe(rotated);
+  await page.getByRole("button", { name: "Front brain view" }).click();
+  await page.getByRole("button", { name: "Surface", exact: true }).click();
+  await expect.poll(pixels).not.toBe(front);
+  await expect(
+    page.getByRole("button", { name: "Surface", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page
+    .locator(".training-brain")
+    .screenshot({ path: "test-results/brain-surface.png" });
+  await page.getByRole("button", { name: "Surface", exact: true }).click();
+  await page
+    .locator(".training-brain")
+    .screenshot({ path: "test-results/brain-particles.png" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(canvas).toBeVisible();
+  expect(
+    await page
+      .locator(".training-shell")
+      .evaluate((el) => el.scrollWidth > el.clientWidth),
+  ).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test("brain atlas load failures show a useful fallback", async ({ page }) => {
+  await page.route("**/api/training", (route) =>
+    route.fulfill({ json: { run: fixture(), stale: false } }),
+  );
+  await page.route("**/brain/neuropils.json", (route) =>
+    route.fulfill({ status: 503, body: "Unavailable" }),
+  );
+  await page.goto("/training");
+  await expect(page.getByText(/Brain anatomy could not load/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Front brain view" }),
+  ).toBeDisabled();
 });
 
 test("sampled 3D preview updates, pauses, orbits and holds during optimization", async ({
