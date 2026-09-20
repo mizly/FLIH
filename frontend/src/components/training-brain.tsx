@@ -42,7 +42,7 @@ export default function TrainingBrain({
           <span />
           {state}
         </div>
-        <BrainViewer />
+        <BrainViewer activity={activity} />
         <div className="training-brain-count">
           <strong>{(connectome?.neurons ?? 139255).toLocaleString()}</strong>
           <span>source neurons</span>
@@ -87,11 +87,16 @@ export default function TrainingBrain({
         </div>
       )}
       <p className="training-caption">
-        FlyWire-space neuropil atlas. Dots show anatomical surfaces; measured
-        neuron states appear in the readout because their coordinates are not
-        available.{" "}
+        Glowing markers show sampled RNN activations at FlyWire neuron anchors.
+        Brightness follows magnitude; green is positive and orange is negative.
+        Activity is shown through the anatomy. These are continuous states, not
+        biological spikes. Unmapped neurons remain in the readout.{" "}
         <a href="/brain/source.json" target="_blank" rel="noreferrer">
           Atlas source
+        </a>
+        {" · "}
+        <a href="/brain/neurons-source.json" target="_blank" rel="noreferrer">
+          Neuron source
         </a>
       </p>
     </section>

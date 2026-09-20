@@ -1,0 +1,28 @@
+{
+  "commit": "8587524c1748ce5ef2080822a2fc890fc03bf597",
+  "source": "https://raw.githubusercontent.com/flyconnectome/flywire_annotations/8587524c1748ce5ef2080822a2fc890fc03bf597/supplemental_files/Supplemental_file1_neuron_annotations.tsv",
+  "sha256": "9a4f8b2f843196074431ebd7cd883536afa1be86c8a4ce90970441e8be81d1be",
+  "dataset": "FlyWire v783",
+  "count": 139248,
+  "coordinate_kind": "Neuron backbone annotation anchor (not soma or reconstructed morphology)",
+  "input_voxel_size_nm": [
+    4,
+    4,
+    40
+  ],
+  "transform": {
+    "center_nm": [
+      489683.8671875,
+      254135.48828125,
+      133747.79858398438
+    ],
+    "scale": 7.429295022006675e-06,
+    "axis_signs": [
+      1,
+      -1,
+      -1
+    ]
+  },
+  "column_documentation": "https://raw.githubusercontent.com/flyconnectome/flywire_annotations/8587524c1748ce5ef2080822a2fc890fc03bf597/supplemental_files/README.md",
+  "citation": "Schlegel et al. Whole-brain annotation and multi-connectome cell typing of Drosophila. Nature (2024). https://doi.org/10.1038/s41586-024-07686-5"
+}

@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { TrainingSnapshot } from "../src/lib/training-types";
+import { locateNeuralActivity } from "../src/lib/neuron-positions";
 
 function fixture(): TrainingSnapshot {
   return {
@@ -83,6 +84,129 @@ function fixture(): TrainingSnapshot {
     },
   };
 }
+
+test("neuron lookup preserves exact IDs and converts official anchor coordinates", async () => {
+  const activity = fixture().neural_activity!;
+  activity.neurons = [
+    { ...activity.neurons[0], root_id: "720575940628857210" },
+    { ...activity.neurons[1], root_id: "720575940628857211" },
+  ];
+  const mapped = await locateNeuralActivity(activity, "FAFB v783");
+  expect(mapped?.coordinate_status).toBe("available");
+  // Official anchor [109306,50491,3960] in 4x4x40 nm voxels,
+  // converted using the atlas's centered/scaled coordinate transform.
+  expect(mapped?.neurons[0].position).toEqual([-0.38974, 0.3876, -0.18315]);
+  expect(mapped?.neurons[1].position).toBeUndefined();
+  expect(activity.neurons[0].position).toBeUndefined();
+  expect(
+    (await locateNeuralActivity(activity, "BANC v888"))?.coordinate_status,
+  ).toBe("unsupported_dataset");
+});
+
+test("measured neurons glow at mapped anchors and respond to live values", async ({
+  page,
+}) => {
+  let run = fixture();
+  run.phase = "collecting";
+  const ids = [
+    "720575940612264817",
+    "720575940627796298",
+    "720575940610584184",
+    "720575940623113752",
+  ];
+  run.neural_activity!.neurons = ids.map((root_id, index) => ({
+    ...run.neural_activity!.neurons[index],
+    root_id,
+    activation: 1,
+    magnitude: 1,
+  }));
+  await page.route("**/api/training", async (route) =>
+    route.fulfill({
+      json: {
+        run: {
+          ...run,
+          neural_activity: await locateNeuralActivity(
+            run.neural_activity,
+            run.connectome?.dataset,
+          ),
+        },
+        stale: false,
+      },
+    }),
+  );
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/training");
+  const viewport = page.locator(".brain-viewport");
+  await expect(viewport).toHaveAttribute("data-ready", "true");
+  await expect(page.getByText("4/4 sampled neurons located")).toBeVisible();
+  const canvas = viewport.locator("canvas");
+  const pixels = () =>
+    canvas.evaluate((el) => (el as HTMLCanvasElement).toDataURL());
+  const green = await pixels();
+  await page
+    .locator(".training-brain")
+    .screenshot({ path: "test-results/brain-live-activity.png" });
+  run.neural_activity = {
+    ...run.neural_activity!,
+    step: 151,
+    neurons: run.neural_activity!.neurons.map((n) => ({
+      ...n,
+      activation: -1,
+    })),
+  };
+  await expect.poll(pixels).not.toBe(green);
+  const orange = await pixels();
+  run.neural_activity = {
+    ...run.neural_activity,
+    step: 152,
+    neurons: run.neural_activity.neurons.map((n) => ({
+      ...n,
+      activation: 0,
+      magnitude: 0,
+    })),
+  };
+  await expect.poll(pixels).not.toBe(orange);
+  const zero = await pixels();
+  run.neural_activity = {
+    ...run.neural_activity,
+    step: 153,
+    neurons: run.neural_activity.neurons.map((n) => ({
+      ...n,
+      activation: 1,
+      magnitude: 1,
+    })),
+  };
+  await expect.poll(pixels).toBe(green);
+  await page.getByRole("button", { name: "Side brain view" }).click();
+  await expect.poll(pixels).not.toBe(green);
+  await page.getByRole("button", { name: "Front brain view" }).click();
+  await page.getByRole("button", { name: "Surface", exact: true }).click();
+  const solid = await pixels();
+  run.neural_activity = {
+    ...run.neural_activity,
+    step: 154,
+    neurons: run.neural_activity.neurons.map((n) => ({
+      ...n,
+      activation: 0,
+      magnitude: 0,
+    })),
+  };
+  await expect.poll(pixels).not.toBe(solid);
+  await page.getByRole("button", { name: "Surface", exact: true }).click();
+  await expect.poll(pixels).toBe(zero);
+  run.neural_activity = {
+    ...run.neural_activity,
+    neurons: [{ ...run.neural_activity.neurons[0], root_id: "missing" }],
+  };
+  await expect(page.getByText("0/1 sampled neurons located")).toBeVisible();
+  expect(await pixels()).toBe(zero);
+  run.neural_activity = undefined;
+  await expect(
+    page.getByText("Waiting for measured neuron activity"),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
 
 test("training dashboard handles waiting, live updates and disconnection", async ({
   page,

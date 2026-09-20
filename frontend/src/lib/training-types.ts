@@ -68,6 +68,7 @@ export type TrainingSnapshot = {
     activity_semantics: "signed_tanh_hidden_state";
   };
   neural_activity?: {
+    coordinate_status?: "available" | "unavailable" | "unsupported_dataset";
     captured_at: number;
     episode: string;
     step: number;
@@ -78,6 +79,8 @@ export type TrainingSnapshot = {
       kind: "sensory" | "interneuron" | "descending";
       activation: number;
       magnitude: number;
+      /** FlyWire v783 annotation anchor, transformed to atlas display space. */
+      position?: [number, number, number];
     }[];
   };
 };

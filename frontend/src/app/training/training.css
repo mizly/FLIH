@@ -683,6 +683,14 @@ td .training-muted {
   line-height: 1.7;
   pointer-events: none;
 }
+.brain-activity-coverage {
+  position: absolute;
+  top: 82px;
+  left: 14px;
+  color: #94b7b1;
+  font-size: 10px;
+  pointer-events: none;
+}
 .training-brain-status {
   position: absolute;
   z-index: 1;

@@ -4,6 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
+import type { TrainingSnapshot } from "@/lib/training-types";
+
+type Activity = TrainingSnapshot["neural_activity"];
+function mappedNeurons(activity: Activity) {
+  if (
+    activity?.coordinate_status === "unsupported_dataset" ||
+    activity?.coordinate_status === "unavailable"
+  )
+    return [];
+  return (activity?.neurons ?? []).filter(
+    (neuron) =>
+      neuron.position?.length === 3 &&
+      neuron.position.every(Number.isFinite) &&
+      Number.isFinite(neuron.activation),
+  );
+}
 
 type AtlasRegion = { name: string; positions: number[]; indices: number[] };
 type View = "Front" | "Side" | "Top";
@@ -11,14 +27,16 @@ type Viewer = {
   view: (view: View) => void;
   zoom: (factor: number) => void;
   surface: (enabled: boolean) => void;
+  activity: (activity: Activity) => void;
 };
 
-export default function BrainViewer() {
+export default function BrainViewer({ activity }: { activity?: Activity }) {
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   const [status, setStatus] = useState("Loading brain anatomy…");
   const [ready, setReady] = useState(false);
   const [surface, setSurface] = useState(false);
+  const mapped = mappedNeurons(activity).length;
 
   useEffect(() => {
     const container = host.current!;
@@ -76,6 +94,51 @@ export default function BrainViewer() {
       sizeAttenuation: true,
     });
     const geometries: THREE.BufferGeometry[] = [];
+    const activityGeometry = new THREE.BufferGeometry();
+    activityGeometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute([], 3),
+    );
+    activityGeometry.setAttribute(
+      "activation",
+      new THREE.Float32BufferAttribute([], 1),
+    );
+    // Soft luminous markers at real annotation anchors. Magnitude controls size
+    // and brightness directly: no synthetic firing or time-driven blinking.
+    const activityMaterial = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: { pixelRatio: { value: Math.min(window.devicePixelRatio, 2) } },
+      vertexShader: `
+        attribute float activation;
+        uniform float pixelRatio;
+        varying float strength;
+        varying vec3 tint;
+        void main() {
+          strength = clamp(abs(activation), 0.0, 1.0);
+          tint = activation >= 0.0 ? vec3(0.27, 1.0, 0.73) : vec3(1.0, 0.40, 0.16);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = (8.0 + 22.0 * sqrt(strength)) * pixelRatio;
+        }
+      `,
+      fragmentShader: `
+        varying float strength;
+        varying vec3 tint;
+        void main() {
+          float radius = length(gl_PointCoord - vec2(0.5)) * 2.0;
+          if (radius > 1.0 || strength < 0.001) discard;
+          float halo = exp(-5.0 * radius * radius) * (1.0 - smoothstep(0.75, 1.0, radius));
+          float core = 1.0 - smoothstep(0.0, 0.24, radius);
+          gl_FragColor = vec4(mix(tint, vec3(1.0), core * 0.7), halo * strength);
+        }
+      `,
+    });
+    const signals = new THREE.Points(activityGeometry, activityMaterial);
+    signals.renderOrder = 10;
+    signals.frustumCulled = false;
+    scene.add(signals);
     const draw = () => {
       if (!disposed) renderer.render(scene, camera);
     };
@@ -101,6 +164,29 @@ export default function BrainViewer() {
     viewer.current = {
       view,
       zoom,
+      activity: (sample) => {
+        const neurons = mappedNeurons(sample);
+        // Release previous GPU attributes before replacing a telemetry sample.
+        activityGeometry.dispose();
+        activityGeometry.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute(
+            neurons.flatMap((neuron) => neuron.position!),
+            3,
+          ),
+        );
+        activityGeometry.setAttribute(
+          "activation",
+          new THREE.Float32BufferAttribute(
+            neurons.map((neuron) =>
+              Math.max(-1, Math.min(1, neuron.activation)),
+            ),
+            1,
+          ),
+        );
+        activityGeometry.setDrawRange(0, neurons.length);
+        draw();
+      },
       surface: (enabled) => {
         material.opacity = enabled ? 0.94 : 0.035;
         material.depthWrite = enabled;
@@ -220,14 +306,25 @@ export default function BrainViewer() {
       geometries.forEach((geometry) => geometry.dispose());
       material.dispose();
       pointMaterial.dispose();
+      activityGeometry.dispose();
+      activityMaterial.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
   }, []);
 
+  useEffect(() => {
+    viewer.current?.activity(activity);
+  }, [activity, ready]);
+
   return (
     <>
-      <div ref={host} className="brain-viewport" data-ready={ready} />
+      <div
+        ref={host}
+        className="brain-viewport"
+        data-ready={ready}
+        data-mapped-neurons={mapped}
+      />
       {status && (
         <div className="brain-load-message" role="note">
           {status}
@@ -272,6 +369,15 @@ export default function BrainViewer() {
       </div>
       <div className="brain-interaction-hint">
         Drag to rotate · Scroll or pinch to zoom
+      </div>
+      <div className="brain-activity-coverage">
+        {activity?.coordinate_status === "unavailable"
+          ? "Neuron coordinates unavailable"
+          : activity?.coordinate_status === "unsupported_dataset"
+            ? "No coordinate map for this dataset"
+            : activity?.neurons.length
+              ? `${mapped}/${activity.neurons.length} sampled neurons located`
+              : "Waiting for measured neuron activity"}
       </div>
     </>
   );

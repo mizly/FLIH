@@ -1,6 +1,7 @@
 import { readFile, access } from "node:fs/promises";
 import path from "node:path";
 import type { TrainingSnapshot } from "@/lib/training-types";
+import { locateNeuralActivity } from "@/lib/neuron-positions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +41,13 @@ export async function GET() {
     }
     return Response.json(
       {
-        run,
+        run: {
+          ...run,
+          neural_activity: await locateNeuralActivity(
+            run.neural_activity,
+            run.connectome?.dataset,
+          ),
+        },
         stale:
           run.status === "running" && Date.now() / 1000 - run.updated_at > 15,
       },
