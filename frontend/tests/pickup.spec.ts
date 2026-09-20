@@ -64,7 +64,8 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
 test("intro opens from the FLIH menu instead of on page load", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toHaveCount(0);
-  await page.getByRole("button", { name: /FLIH/ }).click();
+  await page.getByRole("button", { name: /FLIH/ }).hover();
+  await expect(page.getByRole("button", { name: "what is flih?" })).toBeVisible();
   await page.getByRole("button", { name: "what is flih?" }).click();
   await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toBeVisible();
   await page.getByRole("button", { name: "Got it" }).click();

@@ -36,42 +36,66 @@ export function worldToSource(point: Point): Point {
   };
 }
 
-// Corridor centreline for the complete E5/E7 sixth-floor plan. Source-pixel
-// coordinates keep the trace aligned even when the metre calibration changes.
+// Corridor centrelines for the complete E5/E7 sixth-floor plan. The SVG is a
+// crop of the source drawing, so keep the graph in SVG-local coordinates and
+// apply the crop origin exactly once here. This also makes the values below
+// directly comparable with the corridor geometry in floor-plan.svg.
+function floorPoint(x: number, y: number): Point {
+  return {
+    x: floorPlan.sourceOrigin.x + x,
+    y: floorPlan.sourceOrigin.y + y,
+  };
+}
+
 export const routeNodes = {
-  e7NorthWest: { x: 355, y: 285 },
-  e7NorthEast: { x: 748, y: 285 },
-  e7UpperWest: { x: 355, y: 645 },
-  e7UpperEast: { x: 748, y: 645 },
-  e7MidWest: { x: 355, y: 1165 },
-  e7MidEast: { x: 748, y: 1165 },
-  e7LowerWest: { x: 355, y: 1430 },
-  e7LowerEast: { x: 748, y: 1430 },
-  e7SouthWest: { x: 355, y: 2050 },
-  e7SouthEast: { x: 748, y: 2050 },
-  e7BottomWest: { x: 355, y: 2290 },
-  e7BottomEast: { x: 748, y: 2290 },
-  upperLinkWest: { x: 860, y: 645 },
-  upperLinkEast: { x: 1115, y: 645 },
-  midLinkWest: { x: 860, y: 1410 },
-  midLinkCenter: { x: 985, y: 1410 },
-  midLinkEast: { x: 1115, y: 1410 },
-  e5MidTurn: { x: 1235, y: 1410 },
-  e5MidLink: { x: 1485, y: 1410 },
-  lowerLinkWest: { x: 860, y: 2050 },
-  lowerLinkEast: { x: 1115, y: 2050 },
-  e5UpperWest: { x: 1235, y: 645 },
-  e5UpperEast: { x: 1655, y: 645 },
-  e5NorthWest: { x: 1235, y: 645 },
-  e5NorthEast: { x: 1655, y: 645 },
-  e5MidWest: { x: 1235, y: 1210 },
-  e5MidEast: { x: 1655, y: 1210 },
-  e5Room6002: { x: 1485, y: 1510 },
-  e5Room6004: { x: 1485, y: 1725 },
-  e5Room6007: { x: 1485, y: 1955 },
-  e5LowerJunction: { x: 1485, y: 2050 },
-  e5Room6008: { x: 1485, y: 2215 },
-  e5South: { x: 1485, y: 2445 },
+  // Engineering 7: two long north/south halls, a central lobby, and a
+  // southern return. Values are the geometric centres of the visible halls.
+  e7NorthWest: floorPoint(183.5, 179.5),
+  e7NorthEast: floorPoint(551, 179.5),
+  e7UpperWest: floorPoint(183.5, 525.5),
+  e7UpperEast: floorPoint(551, 525.5),
+  e7MidWest: floorPoint(183.5, 1093.5),
+  e7MidEast: floorPoint(551, 1093.5),
+  e7LowerWest: floorPoint(183.5, 1979),
+  e7LowerEast: floorPoint(551, 1979),
+  e7SouthWest: floorPoint(183.5, 2126),
+  e7SouthEast: floorPoint(551, 2126),
+
+  // The three enclosed E7/E5 bridges.
+  upperLinkCenter: floorPoint(813, 525.5),
+  midLinkCenter: floorPoint(813, 1093.5),
+  lowerLinkCenter: floorPoint(813, 1979),
+
+  // Engineering 5 north loop and the passage around the west side of the
+  // atrium that leads into the lower-floor spine.
+  e5NorthWest: floorPoint(1076.5, 525.5),
+  e5NorthEast: floorPoint(1436, 525.5),
+  e5MidWest: floorPoint(1076.5, 1093.5),
+  e5MidEast: floorPoint(1436, 1093.5),
+  e5AtriumWest: floorPoint(1076.5, 1339),
+  e5SpineNorth: floorPoint(1283.5, 1339),
+
+  // Main lower E5 corridor. Room nodes sit at their corridor-side entrances,
+  // not in the rooms themselves, so generated routes remain walkable.
+  e5Room6003: floorPoint(1283.5, 1390),
+  e5Room6002: floorPoint(1283.5, 1432),
+  e5Room6004: floorPoint(1283.5, 1610),
+  e5Room6005: floorPoint(1283.5, 1649),
+  e5Room6007: floorPoint(1283.5, 1762),
+  e5Room6006: floorPoint(1283.5, 1931),
+  e5LowerJunction: floorPoint(1283.5, 1979),
+  e5Room6008: floorPoint(1283.5, 2090),
+  e5Room6009: floorPoint(1283.5, 2100),
+  e5SouthLoopEast: floorPoint(1283.5, 2190),
+  e5Room6011: floorPoint(1283.5, 2263),
+  e5South: floorPoint(1283.5, 2338),
+
+  // Loop serving the small south rooms and the lower bridge.
+  e5SouthLoopWestTop: floorPoint(1039.5, 1979),
+  e5Room6014: floorPoint(1039.5, 2073.5),
+  e5SouthLoopWestBottom: floorPoint(1039.5, 2190),
+  e5Room6013: floorPoint(1081.5, 2190),
+  e5Room6012: floorPoint(1226.5, 2190),
 } as const satisfies Record<string, Point>;
 
 export type RouteNodeId = keyof typeof routeNodes;
@@ -90,41 +114,42 @@ export const routeEdges = [
   ["e7LowerWest", "e7SouthWest"],
   ["e7LowerEast", "e7SouthEast"],
   ["e7SouthWest", "e7SouthEast"],
-  ["e7SouthWest", "e7BottomWest"],
-  ["e7SouthEast", "e7BottomEast"],
-  ["e7BottomWest", "e7BottomEast"],
-  ["e7UpperEast", "upperLinkWest"],
-  ["upperLinkWest", "upperLinkEast"],
-  ["upperLinkEast", "e5UpperWest"],
-  ["e7LowerEast", "midLinkWest"],
-  ["midLinkWest", "midLinkCenter"],
-  ["midLinkCenter", "midLinkEast"],
-  ["midLinkEast", "e5MidTurn"],
-  ["midLinkEast", "e5MidLink"],
-  ["e5MidWest", "e5MidTurn"],
-  ["e5MidTurn", "e5MidLink"],
-  ["e7SouthEast", "lowerLinkWest"],
-  ["lowerLinkWest", "lowerLinkEast"],
-  ["lowerLinkEast", "e5LowerJunction"],
+  ["e7UpperEast", "upperLinkCenter"],
+  ["upperLinkCenter", "e5NorthWest"],
+  ["e7MidEast", "midLinkCenter"],
+  ["midLinkCenter", "e5MidWest"],
+  ["e7LowerEast", "lowerLinkCenter"],
+  ["lowerLinkCenter", "e5LowerJunction"],
   ["e5NorthWest", "e5NorthEast"],
-  ["e5NorthWest", "e5UpperWest"],
-  ["e5NorthEast", "e5UpperEast"],
-  ["e5UpperWest", "e5UpperEast"],
-  ["e5UpperWest", "e5MidWest"],
-  ["e5UpperEast", "e5MidEast"],
+  ["e5NorthWest", "e5MidWest"],
+  ["e5NorthEast", "e5MidEast"],
   ["e5MidWest", "e5MidEast"],
-  ["e5MidLink", "e5Room6002"],
+  ["e5MidWest", "e5AtriumWest"],
+  ["e5AtriumWest", "e5SpineNorth"],
+  ["e5SpineNorth", "e5Room6003"],
+  ["e5Room6003", "e5Room6002"],
   ["e5Room6002", "e5Room6004"],
-  ["e5Room6004", "e5Room6007"],
-  ["e5Room6007", "e5LowerJunction"],
+  ["e5Room6004", "e5Room6005"],
+  ["e5Room6005", "e5Room6007"],
+  ["e5Room6007", "e5Room6006"],
+  ["e5Room6006", "e5LowerJunction"],
   ["e5LowerJunction", "e5Room6008"],
-  ["e5Room6008", "e5South"],
+  ["e5Room6008", "e5Room6009"],
+  ["e5Room6009", "e5SouthLoopEast"],
+  ["e5SouthLoopEast", "e5Room6011"],
+  ["e5Room6011", "e5South"],
+  ["e5LowerJunction", "e5SouthLoopWestTop"],
+  ["e5SouthLoopWestTop", "e5Room6014"],
+  ["e5Room6014", "e5SouthLoopWestBottom"],
+  ["e5SouthLoopWestBottom", "e5Room6013"],
+  ["e5Room6013", "e5Room6012"],
+  ["e5Room6012", "e5SouthLoopEast"],
 ] as const satisfies readonly (readonly [RouteNodeId, RouteNodeId])[];
 
 export const places = [
   {
     id: "slc",
-    name: "E7/E5 link — You Are Here",
+    name: "E7/E5 middle link — You Are Here",
     short: "You are here",
     node: "midLinkCenter",
   },
@@ -138,7 +163,7 @@ export const places = [
     id: "dp",
     name: "E7 south corridor",
     short: "E7 south",
-    node: "e7BottomEast",
+    node: "e7LowerEast",
   },
   {
     id: "ml",
@@ -154,8 +179,16 @@ export const places = [
   },
   { id: "e7", name: "Room 6004", short: "6004", node: "e5Room6004" },
   { id: "r6002", name: "Room 6002", short: "6002", node: "e5Room6002" },
+  { id: "r6003", name: "Room 6003", short: "6003", node: "e5Room6003" },
+  { id: "r6005", name: "Room 6005", short: "6005", node: "e5Room6005" },
+  { id: "r6006", name: "Room 6006", short: "6006", node: "e5Room6006" },
   { id: "r6007", name: "Room 6007", short: "6007", node: "e5Room6007" },
   { id: "r6008", name: "Room 6008", short: "6008", node: "e5Room6008" },
+  { id: "r6009", name: "Room 6009", short: "6009", node: "e5Room6009" },
+  { id: "r6011", name: "Room 6011", short: "6011", node: "e5Room6011" },
+  { id: "r6012", name: "Room 6012", short: "6012", node: "e5Room6012" },
+  { id: "r6013", name: "Room 6013", short: "6013", node: "e5Room6013" },
+  { id: "r6014", name: "Room 6014", short: "6014", node: "e5Room6014" },
 ] as const satisfies readonly {
   id: string;
   name: string;

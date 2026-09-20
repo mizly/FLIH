@@ -34,9 +34,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .brand { position: relative; z-index: 2; height: 60px; border-radius: 18px; padding: 5px 12px 5px 9px; display: flex; align-items: center; gap: 3px; font-family: "Kalam", cursive; font-size: 29px; font-weight: 700; }
 .brand svg { width: 46px; height: 42px; }
 .brand .brand-chevron { width: 16px; height: 16px; margin-left: 2px; color: var(--muted); transition: transform .2s ease; }
-.brand-menu.is-open .brand-chevron { transform: rotate(180deg); }
-.brand-about { position: absolute; z-index: 1; top: 48px; left: 9px; min-width: 112px; padding: 17px 13px 8px; border: 1px solid rgba(32,33,36,.14); border-top: 0; border-radius: 0 0 13px 13px; color: var(--muted); background: rgba(255,254,250,.96); box-shadow: 0 8px 22px rgba(31,33,36,.12); font-size: 13px; line-height: 1; opacity: 0; transform: translateY(-22px); pointer-events: none; transition: transform .2s ease, opacity .15s ease; }
-.brand-menu.is-open .brand-about { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.brand-menu:hover .brand-chevron, .brand-menu:focus-within .brand-chevron { transform: rotate(180deg); }
+.brand-about { position: absolute; z-index: 1; top: 47px; left: 0; width: 100%; min-height: 48px; padding: 16px 12px 8px; border: 1px solid rgba(32,33,36,.14); border-top: 0; border-radius: 0 0 18px 18px; color: var(--muted); background: rgba(255,254,250,.94); box-shadow: 0 8px 30px rgba(31,33,36,.12); backdrop-filter: blur(10px); font-size: 13px; line-height: 1; opacity: 0; transform: translateY(-28px); pointer-events: none; transition: transform .2s ease, opacity .15s ease; }
+.brand-menu:hover .brand-about, .brand-menu:focus-within .brand-about { opacity: 1; transform: translateY(0); pointer-events: auto; }
 .brand-about:hover { color: var(--blue); }
 .brand-dot { color: var(--accent); }
 .header-actions { display: flex; align-items: center; gap: 9px; pointer-events: auto; }
@@ -223,7 +223,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
   .brand { height: 50px; font-size: 25px; border-radius: 15px; }
   .brand svg { width: 38px; height: 35px; }
   .brand .brand-chevron { width: 15px; height: 15px; }
-  .brand-about { top: 39px; left: 7px; min-width: 105px; padding-top: 16px; font-size: 12px; }
+  .brand-about { top: 38px; min-height: 42px; padding-top: 15px; border-radius: 0 0 15px 15px; font-size: 12px; }
   .control-link { width: 42px; padding: 0; justify-content: center; font-size: 0; }
   .map-top { top: 73px; width: max-content; }
   .map-demo { display: none; }

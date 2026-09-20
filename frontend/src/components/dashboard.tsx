@@ -16,7 +16,6 @@ export function Dashboard() {
   const [pickup, setPickup] = useState<PlaceId | null>(null);
   const [destination, setDestination] = useState<PlaceId | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
-  const [brandMenuOpen, setBrandMenuOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -152,11 +151,11 @@ export function Dashboard() {
   return (
     <main className="app-shell">
       <header className="floating-header">
-        <div className={brandMenuOpen ? "brand-menu is-open" : "brand-menu"}>
-          <button className="brand" type="button" onClick={() => setBrandMenuOpen((open) => !open)} aria-expanded={brandMenuOpen} aria-controls="brand-menu-action">
+        <div className="brand-menu">
+          <button className="brand" type="button" aria-controls="brand-menu-action">
             <Fly small /><span>FLIH<span className="brand-dot">.</span></span><ChevronDown className="brand-chevron" size={16} />
           </button>
-          <button id="brand-menu-action" className="brand-about" type="button" onClick={() => { setIntroOpen(true); setBrandMenuOpen(false); }} tabIndex={brandMenuOpen ? 0 : -1}>what is flih?</button>
+          <button id="brand-menu-action" className="brand-about" type="button" onClick={() => setIntroOpen(true)}>what is flih?</button>
         </div>
         <div className="header-actions">
           <Link className="control-link" href="/control"><Gamepad2 size={18} /> Drive</Link>
