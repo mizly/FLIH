@@ -260,6 +260,29 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .control-card h2 { margin: 0; font-family: "Kalam", cursive; font-size: 23px; line-height: 1; }
 .control-connection { min-height: 32px; margin: 9px 0; padding: 5px 8px; display: flex; align-items: center; gap: 6px; color: #6f4930; border: 2px dashed #a97a42; border-radius: 13px 8px 12px 9px / 8px 13px 7px 12px; background: rgba(255, 255, 255, 0.62); font-size: 12px; line-height: 1.1; }
 .control-connection.is-online { color: #1f7040; border-color: #368b55; background: #edf9ef; }
+.control-brain-stage { position: relative; height: 245px; overflow: hidden; border: 2px solid var(--ink); border-radius: 18px 10px 16px 12px / 11px 18px 9px 16px; background: #0b1418; box-shadow: inset 0 0 30px rgba(87, 210, 188, 0.08); }
+.control-brain-stage .brain-viewport { position: absolute; inset: 0; }
+.control-brain-stage .brain-viewport canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+.control-brain-stage .brain-viewport canvas:active { cursor: grabbing; }
+.control-brain-stage .brain-viewport canvas:focus-visible { outline: 2px solid #77cdbb; outline-offset: -4px; }
+.control-brain-stage .brain-load-message { position: absolute; z-index: 2; inset: 46% 18px auto; color: #bdd1d5; font-size: 11px; text-align: center; pointer-events: none; }
+.brain-speech { position: absolute; z-index: 3; top: 12px; right: 12px; width: min(158px, 52%); padding: 9px 11px 10px; color: var(--ink); border: 2px solid var(--ink); border-radius: 13px 9px 14px 8px / 9px 14px 8px 13px; background: white; box-shadow: 3px 3px 0 var(--ink); transform: rotate(0.7deg); pointer-events: none; }
+.brain-speech::after { content: ""; position: absolute; left: 17px; bottom: -10px; width: 16px; height: 16px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); background: white; transform: skewY(-34deg) rotate(35deg); }
+.brain-speech span, .brain-speech strong { display: block; }
+.brain-speech span { color: var(--accent); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.brain-speech strong { margin-top: 2px; font-family: "Kalam", cursive; font-size: 15px; line-height: 1.12; }
+.brain-speech.is-ready { background: #f6fff9; }
+.brain-speech.is-error { color: #8f2020; background: #fff0ed; }
+.control-brain-legend { position: absolute; z-index: 2; right: 10px; bottom: 9px; left: 10px; display: flex; align-items: center; gap: 8px; color: #91a9ad; font-size: 9px; pointer-events: none; }
+.control-brain-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.control-brain-legend i { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 7px currentColor; }
+.control-brain-legend i.positive { color: #6bd8c1; background: #6bd8c1; }
+.control-brain-legend i.negative { color: #f0a16f; background: #f0a16f; }
+.control-brain-legend strong { margin-left: auto; color: #c8d9dc; font-weight: 500; }
+.brain-drive-footer { margin-top: 9px; display: flex; align-items: center; gap: 9px; }
+.brain-drive-footer .drive-stop { position: static; flex: 0 0 auto; min-width: 64px; min-height: 36px; flex-direction: row; gap: 5px; border-radius: 12px 8px 11px 9px / 8px 12px 7px 11px; }
+.brain-drive-footer .control-safety { flex: 1; margin: 0; text-align: right; }
+.mobile-joystick { display: none; }
 .drive-grid { width: min(255px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .drive-key, .drive-stop { min-height: 43px; border: 2px solid var(--ink); background: white; box-shadow: 3px 3px 0 var(--ink); user-select: none; touch-action: none; transition: transform 0.1s, box-shadow 0.1s, background 0.1s; }
 .drive-key { display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 14px 8px 13px 9px / 9px 14px 8px 13px; }
@@ -318,9 +341,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
   .control-header { top: 12px; left: 12px; right: 12px; }
   .control-header .brand { height: 50px; box-shadow: 3px 3px 0 var(--ink); }
   .control-home { min-height: 42px; padding: 7px 12px; box-shadow: 3px 3px 0 var(--ink); font-size: 15px; }
-  .cockpit-layout { min-height: 0; grid-template-columns: 1fr; gap: 28px; }
+  .cockpit-layout { height: auto; min-height: 0; grid-template-columns: 1fr; gap: 28px; }
   .cockpit-vision { display: block; }
   .camera-sketch-card { height: 540px; padding: 10px; box-shadow: 6px 6px 0 var(--ink); }
+  .mobile-joystick { position: absolute; z-index: 8; right: 25px; bottom: 27px; width: 126px; height: 126px; display: grid; place-items: center; color: rgba(255,255,255,.68); border: 2px solid rgba(255,255,255,.78); border-radius: 50%; background: rgba(13,18,21,.42); box-shadow: 0 4px 18px rgba(0,0,0,.28), inset 0 0 0 9px rgba(255,255,255,.06); backdrop-filter: blur(5px); touch-action: none; user-select: none; }
+  .mobile-joystick::before, .mobile-joystick::after { content: ""; position: absolute; background: rgba(255,255,255,.16); pointer-events: none; }
+  .mobile-joystick::before { width: 1px; height: calc(100% - 20px); }
+  .mobile-joystick::after { width: calc(100% - 20px); height: 1px; }
+  .mobile-joystick > span { position: absolute; top: 9px; font-size: 8px; font-weight: 700; letter-spacing: .14em; pointer-events: none; }
+  .mobile-joystick-knob { position: relative; z-index: 2; width: 48px; height: 48px; border: 2px solid white; border-radius: 50%; background: rgba(77,119,184,.88); box-shadow: 0 4px 12px rgba(0,0,0,.35); pointer-events: none; }
+  .mobile-joystick.is-disabled { opacity: .38; filter: grayscale(1); }
   .camera-panel > .camera-status { top: 9px; max-width: calc(100% - 18px); white-space: normal; }
   .camera-grid { grid-template-columns: 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 3px; }
   .camera-feed:first-child { border-radius: 20px 7px 4px 4px / 12px 18px 4px 4px; }
@@ -330,6 +360,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
   .lidar-panel { min-height: 0; }
   .lidar-plot { width: 100%; justify-self: center; }
   .control-card { width: min(100%, 520px); justify-self: center; padding: 22px 18px 19px; }
+  .control-brain-stage { height: 320px; }
   .lidar-plot figcaption { flex-wrap: wrap; }
   .drive-key, .drive-stop { min-height: 58px; }
 

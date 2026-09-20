@@ -30,7 +30,17 @@ type Viewer = {
   activity: (activity: Activity) => void;
 };
 
-export default function BrainViewer({ activity }: { activity?: Activity }) {
+type BrainViewerProps = {
+  activity?: Activity;
+  autoRotate?: boolean;
+  compact?: boolean;
+};
+
+export default function BrainViewer({
+  activity,
+  autoRotate = false,
+  compact = false,
+}: BrainViewerProps) {
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   const [status, setStatus] = useState("Loading brain anatomy…");
@@ -72,6 +82,10 @@ export default function BrainViewer({ activity }: { activity?: Activity }) {
     controls.maxDistance = 24;
     controls.rotateSpeed = 0.7;
     controls.zoomSpeed = 0.75;
+    controls.autoRotate =
+      autoRotate &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    controls.autoRotateSpeed = 0.45;
     const atlas = new THREE.Group();
     scene.add(atlas, new THREE.HemisphereLight(0xc5e8ed, 0x263a42, 2));
     const light = new THREE.DirectionalLight(0xffffff, 2.5);
@@ -213,6 +227,13 @@ export default function BrainViewer({ activity }: { activity?: Activity }) {
     const observer = new ResizeObserver(resize);
     observer.observe(container);
     controls.addEventListener("change", draw);
+    let animationFrame = 0;
+    const animate = () => {
+      if (disposed || !controls.autoRotate) return;
+      controls.update();
+      animationFrame = requestAnimationFrame(animate);
+    };
+    if (controls.autoRotate) animationFrame = requestAnimationFrame(animate);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Home") view("Front");
       else if (event.key === "+" || event.key === "=") zoom(0.85);
@@ -300,6 +321,7 @@ export default function BrainViewer({ activity }: { activity?: Activity }) {
       abort.abort();
       viewer.current = null;
       observer.disconnect();
+      cancelAnimationFrame(animationFrame);
       controls.dispose();
       renderer.domElement.removeEventListener("keydown", onKey);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
@@ -311,7 +333,7 @@ export default function BrainViewer({ activity }: { activity?: Activity }) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [autoRotate]);
 
   useEffect(() => {
     viewer.current?.activity(activity);
@@ -330,55 +352,62 @@ export default function BrainViewer({ activity }: { activity?: Activity }) {
           {status}
         </div>
       )}
-      <div className="brain-view-controls" aria-label="Brain camera controls">
-        {(["Front", "Side", "Top"] as const).map((name) => (
-          <button
-            key={name}
-            disabled={!ready}
-            onClick={() => viewer.current?.view(name)}
-            aria-label={`${name} brain view`}
+      {!compact && (
+        <>
+          <div
+            className="brain-view-controls"
+            aria-label="Brain camera controls"
           >
-            {name}
-          </button>
-        ))}
-        <span />
-        <button
-          disabled={!ready}
-          onClick={() => viewer.current?.zoom(0.85)}
-          aria-label="Zoom in on brain"
-        >
-          +
-        </button>
-        <button
-          disabled={!ready}
-          onClick={() => viewer.current?.zoom(1.15)}
-          aria-label="Zoom out of brain"
-        >
-          −
-        </button>
-        <button
-          disabled={!ready}
-          aria-pressed={surface}
-          onClick={() => {
-            viewer.current?.surface(!surface);
-            setSurface(!surface);
-          }}
-        >
-          Surface
-        </button>
-      </div>
-      <div className="brain-interaction-hint">
-        Drag to rotate · Scroll or pinch to zoom
-      </div>
-      <div className="brain-activity-coverage">
-        {activity?.coordinate_status === "unavailable"
-          ? "Neuron coordinates unavailable"
-          : activity?.coordinate_status === "unsupported_dataset"
-            ? "No coordinate map for this dataset"
-            : activity?.neurons.length
-              ? `${mapped}/${activity.neurons.length} sampled neurons located`
-              : "Waiting for measured neuron activity"}
-      </div>
+            {(["Front", "Side", "Top"] as const).map((name) => (
+              <button
+                key={name}
+                disabled={!ready}
+                onClick={() => viewer.current?.view(name)}
+                aria-label={`${name} brain view`}
+              >
+                {name}
+              </button>
+            ))}
+            <span />
+            <button
+              disabled={!ready}
+              onClick={() => viewer.current?.zoom(0.85)}
+              aria-label="Zoom in on brain"
+            >
+              +
+            </button>
+            <button
+              disabled={!ready}
+              onClick={() => viewer.current?.zoom(1.15)}
+              aria-label="Zoom out of brain"
+            >
+              −
+            </button>
+            <button
+              disabled={!ready}
+              aria-pressed={surface}
+              onClick={() => {
+                viewer.current?.surface(!surface);
+                setSurface(!surface);
+              }}
+            >
+              Surface
+            </button>
+          </div>
+          <div className="brain-interaction-hint">
+            Drag to rotate · Scroll or pinch to zoom
+          </div>
+          <div className="brain-activity-coverage">
+            {activity?.coordinate_status === "unavailable"
+              ? "Neuron coordinates unavailable"
+              : activity?.coordinate_status === "unsupported_dataset"
+                ? "No coordinate map for this dataset"
+                : activity?.neurons.length
+                  ? `${mapped}/${activity.neurons.length} sampled neurons located`
+                  : "Waiting for measured neuron activity"}
+          </div>
+        </>
+      )}
     </>
   );
 }

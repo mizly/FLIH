@@ -21,6 +21,7 @@ DEFAULT_CHECKPOINT = FLY_ROOT / "checkpoints" / "connectome_rnn_dagger_iter_10.p
 LIDAR_BINS = 12
 MAX_RANGE_M = 12.0
 MIN_RANGE_M = 0.05
+ACTIVITY_SAMPLE_SIZE = 64
 
 
 def lidar_features(ranges, angles, bins=LIDAR_BINS):
@@ -57,6 +58,50 @@ def action_to_advice(velocity, heading_rad):
 def _csv_rows(path):
     with path.open(newline="", encoding="utf-8") as handle:
         return sum(1 for _ in csv.DictReader(handle))
+
+
+def _connectome_neuron_ids(path):
+    """Recreate the stable tensor-index to FAFB root-ID mapping used in training."""
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        fields = set(reader.fieldnames or ())
+        aliases = (
+            ("pre", "post"),
+            ("Presynaptic_ID", "Postsynaptic_ID"),
+            ("Pre", "Post"),
+            ("pre_root_id", "post_root_id"),
+        )
+        columns = next((pair for pair in aliases if set(pair) <= fields), None)
+        if columns is None:
+            raise ValueError("connectome edge list has no recognised neuron columns")
+        neuron_ids = set()
+        for row in reader:
+            neuron_ids.add(int(row[columns[0]]))
+            neuron_ids.add(int(row[columns[1]]))
+    return [str(root_id) for root_id in sorted(neuron_ids)]
+
+
+def activity_sample(hidden, neuron_ids, limit=ACTIVITY_SAMPLE_SIZE):
+    """Return the strongest measured signed hidden states for the live viewer."""
+    state = hidden.detach().float().flatten()
+    count = min(int(limit), int(state.numel()))
+    magnitudes, indices = state.abs().topk(count, sorted=True)
+    values = state.index_select(0, indices)
+    indices = indices.cpu().tolist()
+    values = values.cpu().tolist()
+    magnitudes = magnitudes.cpu().tolist()
+    return {
+        "semantics": "signed_tanh_hidden_state",
+        "neurons": [
+            {
+                "index": int(index),
+                "rootId": neuron_ids[index],
+                "activation": round(float(value), 5),
+                "magnitude": round(float(magnitude), 5),
+            }
+            for index, value, magnitude in zip(indices, values, magnitudes)
+        ],
+    }
 
 
 def _load_model(checkpoint):
@@ -135,7 +180,10 @@ def _load_model(checkpoint):
     agent.load_state_dict(state, strict=True)
     agent.eval()
     hidden = torch.zeros(1, agent.cell.N, device=device, dtype=torch.float32)
-    return agent, hidden, device, cv2, np, torch
+    neuron_ids = _connectome_neuron_ids(connectome / "connections_princeton.csv")
+    if len(neuron_ids) != agent.cell.N:
+        raise ValueError("connectome neuron IDs do not match checkpoint shape")
+    return agent, hidden, device, cv2, np, torch, neuron_ids
 
 
 class FlyPolicyAdvisor:
@@ -193,7 +241,7 @@ class FlyPolicyAdvisor:
         try:
             if self._model is None:
                 self._model = _load_model(self.checkpoint)
-            agent, hidden, device, cv2, np, torch = self._model
+            agent, hidden, device, cv2, np, torch, neuron_ids = self._model
             with self._lock:
                 reset = self._reset_requested
                 self._reset_requested = False
@@ -223,13 +271,14 @@ class FlyPolicyAdvisor:
                 hidden, action = agent.step(
                     hidden, {"cam_left": images[0], "cam_right": images[1], "sensors": sensors}
                 )
-            self._model = (agent, hidden, device, cv2, np, torch)
+            self._model = (agent, hidden, device, cv2, np, torch, neuron_ids)
             advice = action_to_advice(action[0, 0].item(), action[0, 1].item())
             result = {
                 "status": "ready",
                 "advisoryOnly": True,
                 "checkpoint": self.checkpoint.name,
                 "goalDirection": direction,
+                "activity": activity_sample(hidden, neuron_ids),
                 **advice,
             }
         except Exception as error:

@@ -2,18 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
-  Bot,
-  House,
-  Radio,
-  RotateCcw,
-} from "lucide-react";
+import { BrainCircuit, House, Radio, Square } from "lucide-react";
 import { CameraFeeds } from "./camera-feeds";
-import { LidarView } from "./lidar-view";
+import { LidarView, type FlyAdvice } from "./lidar-view";
+import { LiveBrainAdvisor } from "./live-brain-advisor";
 import { Fly } from "./fly";
 
 type Connection = "connecting" | "connected" | "disconnected";
@@ -30,19 +22,24 @@ export function RobotControl() {
   const [robotConnected, setRobotConnected] = useState(false);
   const [controllerAvailable, setControllerAvailable] = useState(true);
   const [lidarAlert, setLidarAlert] = useState<LidarAlert>("clear");
+  const [flyAdvice, setFlyAdvice] = useState<FlyAdvice | null>(null);
+  const [joystickOffset, setJoystickOffset] = useState({ x: 0, y: 0 });
   const [message, setMessage] = useState("Connecting to control server…");
   const enabled =
     connection === "connected" && robotConnected && controllerAvailable;
 
-  const handleSafetySignalChange = useCallback((signal: "red" | "yellow" | "green" | null) => {
-    setLidarAlert(
-      signal === null || signal === "green"
-        ? "clear"
-        : signal === "red"
-          ? "danger"
-          : "near",
-    );
-  }, []);
+  const handleSafetySignalChange = useCallback(
+    (signal: "red" | "yellow" | "green" | null) => {
+      setLidarAlert(
+        signal === null || signal === "green"
+          ? "clear"
+          : signal === "red"
+            ? "danger"
+            : "near",
+      );
+    },
+    [],
+  );
 
   const sendDrive = useCallback(() => {
     const socket = socketRef.current;
@@ -75,6 +72,39 @@ export function RobotControl() {
     },
     [sendDrive],
   );
+
+  const moveJoystick = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const radius = Math.max(
+        1,
+        Math.min(bounds.width, bounds.height) / 2 - 24,
+      );
+      const rawX = event.clientX - (bounds.left + bounds.width / 2);
+      const rawY = event.clientY - (bounds.top + bounds.height / 2);
+      const length = Math.hypot(rawX, rawY);
+      const scale = length > radius ? radius / length : 1;
+      const x = rawX * scale;
+      const y = rawY * scale;
+      setJoystickOffset({ x, y });
+
+      const threshold = radius * 0.28;
+      const next = new Set<Direction>();
+      if (y < -threshold) next.add("w");
+      if (y > threshold) next.add("s");
+      if (x < -threshold) next.add("a");
+      if (x > threshold) next.add("d");
+      pressedRef.current = next;
+      setPressed(next);
+      sendDrive();
+    },
+    [sendDrive],
+  );
+
+  const releaseJoystick = useCallback(() => {
+    setJoystickOffset({ x: 0, y: 0 });
+    releaseAll();
+  }, [releaseAll]);
 
   useEffect(() => {
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -152,7 +182,10 @@ export function RobotControl() {
   }, [enabled, releaseAll, setKey]);
 
   useEffect(() => {
-    if (!enabled) releaseAll();
+    if (!enabled) {
+      setJoystickOffset({ x: 0, y: 0 });
+      releaseAll();
+    }
   }, [enabled, releaseAll]);
 
   // Load-bearing repeat: the server drops the controller after 350 ms without a
@@ -163,17 +196,6 @@ export function RobotControl() {
     const timer = setInterval(sendDrive, 100);
     return () => clearInterval(timer);
   }, [pressed, sendDrive]);
-
-  const keyProps = (key: Direction) => ({
-    onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
-      event.currentTarget.setPointerCapture(event.pointerId);
-      setKey(key, true);
-    },
-    onPointerUp: () => setKey(key, false),
-    onPointerCancel: () => setKey(key, false),
-    className: pressed.has(key) ? "drive-key is-pressed" : "drive-key",
-    disabled: !enabled,
-  });
 
   return (
     <main className="control-shell">
@@ -194,6 +216,32 @@ export function RobotControl() {
           <div className="camera-sketch-card">
             <span className="paper-tape camera-tape" aria-hidden="true" />
             <CameraFeeds />
+            <div
+              className={`mobile-joystick ${enabled ? "" : "is-disabled"}`}
+              aria-label="Touch joystick for driving FLIH"
+              onPointerDown={(event) => {
+                if (!enabled) return;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                moveJoystick(event);
+              }}
+              onPointerMove={(event) => {
+                if (
+                  enabled &&
+                  event.currentTarget.hasPointerCapture(event.pointerId)
+                )
+                  moveJoystick(event);
+              }}
+              onPointerUp={releaseJoystick}
+              onPointerCancel={releaseJoystick}
+            >
+              <span>DRIVE</span>
+              <i
+                className="mobile-joystick-knob"
+                style={{
+                  transform: `translate(${joystickOffset.x}px, ${joystickOffset.y}px)`,
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -203,7 +251,10 @@ export function RobotControl() {
             <div className="instrument-label">
               <span>02</span> LiDAR notebook
             </div>
-            <LidarView onSafetySignalChange={handleSafetySignalChange} />
+            <LidarView
+              onSafetySignalChange={handleSafetySignalChange}
+              onFlyAdviceChange={setFlyAdvice}
+            />
           </div>
 
           <section
@@ -213,11 +264,11 @@ export function RobotControl() {
             <span className="control-tack" aria-hidden="true" />
             <div className="control-title-row">
               <div className="control-icon">
-                <Bot size={23} />
+                <BrainCircuit size={23} />
               </div>
               <div>
-                <span className="wizard-eyebrow">Manual drive</span>
-                <h2 id="control-title">Take the wheel.</h2>
+                <span className="wizard-eyebrow">Fly connectome</span>
+                <h2 id="control-title">Thinking ahead.</h2>
               </div>
             </div>
 
@@ -230,32 +281,21 @@ export function RobotControl() {
               <span>{message}</span>
             </div>
 
-            <div className="drive-grid" aria-label="Robot directional controls">
-              <button {...keyProps("w")} aria-label="Drive forward">
-                <kbd>W</kbd>
-                <ArrowUp size={20} />
-              </button>
-              <button {...keyProps("a")} aria-label="Turn left">
-                <kbd>A</kbd>
-                <ArrowLeft size={20} />
-              </button>
+            <LiveBrainAdvisor advice={flyAdvice} />
+
+            <div className="brain-drive-footer">
               <button
                 type="button"
                 className="drive-stop"
                 onClick={releaseAll}
                 aria-label="Stop robot"
               >
-                <RotateCcw size={18} />
+                <Square size={12} fill="currentColor" />
                 <span>STOP</span>
               </button>
-              <button {...keyProps("d")} aria-label="Turn right">
-                <kbd>D</kbd>
-                <ArrowRight size={20} />
-              </button>
-              <button {...keyProps("s")} aria-label="Drive backward">
-                <kbd>S</kbd>
-                <ArrowDown size={20} />
-              </button>
+              <p className="control-safety">
+                Desktop: WASD · Mobile: drag the camera joystick
+              </p>
             </div>
 
             {!controllerAvailable && (
@@ -263,9 +303,6 @@ export function RobotControl() {
                 Another browser currently has control.
               </p>
             )}
-            <p className="control-safety">
-              WASD or press and hold · release to stop
-            </p>
           </section>
         </aside>
       </div>
