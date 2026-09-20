@@ -87,6 +87,10 @@ ROBOT_WS_URL=wss://your-service.onrender.com/ws/robot
 ROBOT_CAMERA_WS_URL=wss://your-service.onrender.com/ws/camera
 ROBOT_LIDAR_WS_URL=wss://your-service.onrender.com/ws/lidar
 ROBOT_API_KEY=the-same-value-as-render
+YIBU_API_KEY=your-yibu-api-key
+YIBU_BASE_URL=https://yibuapi.com/v1
+YIBU_MODEL=qwen3.5-omni-plus
+ROBOT_OMNI_INTERVAL=5
 ```
 
 Browser tests expect the local server on port 3000 and Microsoft Edge installed. They cover the onboarding wizard, editable routes, mobile layout, map controls, captcha-free guide requests, and unauthorized API requests.

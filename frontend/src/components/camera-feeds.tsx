@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Video, VideoOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleHelp, Video, VideoOff } from "lucide-react";
+import type { OmniReading } from "@/lib/perception";
 
 type Link = "connecting" | "connected" | "disconnected";
 type Feed = { live: boolean; fps: number };
@@ -15,7 +16,7 @@ function emptyFeeds(): Feed[] {
   return CAMERA_LABELS.map(() => ({ live: false, fps: 0 }));
 }
 
-export function CameraFeeds() {
+export function CameraFeeds({ perception }: { perception: OmniReading | null }) {
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const decodingRef = useRef<boolean[]>([]);
   const lastFrameRef = useRef<number[]>([]);
@@ -136,11 +137,45 @@ export function CameraFeeds() {
         ? "Camera link up, waiting for frames…"
         : "No camera stream. Start backend/camera_stream.py on the robot.";
 
+  const perceptionStatus = perception?.error
+    ? "AI check unavailable"
+    : perception?.obstacle_ahead === true
+      ? perception.obstacle_summary || "Obstacle ahead"
+      : perception?.obstacle_ahead === false
+        ? perception.obstacle_summary || "Path looks clear ahead"
+        : anyLive
+          ? "AI check pending"
+          : "No visual check";
+  const perceptionState = perception?.error
+    ? "error"
+    : perception?.obstacle_ahead === true
+      ? "danger"
+      : perception?.obstacle_ahead === false
+        ? "clear"
+        : "pending";
+  const PerceptionIcon = perceptionState === "danger"
+    ? AlertTriangle
+    : perceptionState === "clear"
+      ? CheckCircle2
+      : CircleHelp;
+
   return (
     <section className="camera-panel" aria-label="Robot camera feeds">
       <div className={`camera-status ${anyLive ? "is-live" : ""}`} role="status" aria-live="polite">
         {anyLive ? <Video size={16} /> : <VideoOff size={16} />}
         <span>{status}</span>
+      </div>
+      <div
+        className={`camera-perception-status is-${perceptionState}`}
+        role="status"
+        aria-live="polite"
+        title={perception?.reasoning || perception?.error || undefined}
+      >
+        <PerceptionIcon size={15} />
+        <span><strong>Dashboard:</strong> {perceptionStatus}</span>
+        {perception?.updated_at && (
+          <small>{Math.max(0, Math.round(Date.now() / 1000 - perception.updated_at))}s ago</small>
+        )}
       </div>
 
       <div className="camera-grid">

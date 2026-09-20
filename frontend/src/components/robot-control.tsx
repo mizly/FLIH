@@ -7,6 +7,7 @@ import { CameraFeeds } from "./camera-feeds";
 import { LidarView, type FlyAdvice } from "./lidar-view";
 import { LiveBrainAdvisor } from "./live-brain-advisor";
 import { Fly } from "./fly";
+import type { OmniReading } from "@/lib/perception";
 
 type Connection = "connecting" | "connected" | "disconnected";
 type Direction = "w" | "a" | "s" | "d";
@@ -23,6 +24,7 @@ export function RobotControl() {
   const [controllerAvailable, setControllerAvailable] = useState(true);
   const [lidarAlert, setLidarAlert] = useState<LidarAlert>("clear");
   const [flyAdvice, setFlyAdvice] = useState<FlyAdvice | null>(null);
+  const [omniReading, setOmniReading] = useState<OmniReading | null>(null);
   const [joystickOffset, setJoystickOffset] = useState({ x: 0, y: 0 });
   const [message, setMessage] = useState("Connecting to control server…");
   const enabled =
@@ -215,7 +217,7 @@ export function RobotControl() {
         <div className="cockpit-vision">
           <div className="camera-sketch-card">
             <span className="paper-tape camera-tape" aria-hidden="true" />
-            <CameraFeeds />
+            <CameraFeeds perception={omniReading} />
             <div
               className={`mobile-joystick ${enabled ? "" : "is-disabled"}`}
               aria-label="Touch joystick for driving FLIH"
@@ -254,6 +256,7 @@ export function RobotControl() {
             <LidarView
               onSafetySignalChange={handleSafetySignalChange}
               onFlyAdviceChange={setFlyAdvice}
+              onOmniChange={setOmniReading}
             />
           </div>
 

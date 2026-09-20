@@ -28,10 +28,13 @@ python backend/classification/classify_surroundings.py `
 In the live robot path, `server.mjs` samples both camera panes onto the LiDAR
 socket. `lidar_stream.py` combines those views with compact front/left/right/back
 LiDAR minima and the commanded direction, then calls OMNI in a background worker
-at most once every five seconds while the robot is moving. Set
+at most once every five seconds whenever both camera panes are available. The live
+prompt is focused on whether there is an obstacle ahead, including while the robot
+is stopped. Set
 `ROBOT_OMNI_INTERVAL` to change that cadence or pass `--no-omni` to disable it.
-The result appears in the next scan payload under `omni`. The direct LiDAR traffic
-light remains local and does not wait for cloud latency or depend on network access.
+The result appears in the next scan payload under `omni` and is shown as a dashboard
+status over the camera view. The direct LiDAR traffic light remains local and does
+not wait for cloud latency or depend on network access.
 
 The LiDAR JSON may be an array of distances (evenly distributed around 360
 degrees), or an object with a `ranges` array and optional sensor metadata such

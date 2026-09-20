@@ -5,7 +5,12 @@ import os
 import threading
 import time
 
-from classification.classify_surroundings import classify_views, load_env, REPO_ROOT
+from classification.classify_surroundings import (
+    LIVE_SYSTEM_PROMPT,
+    REPO_ROOT,
+    classify_views,
+    load_env,
+)
 
 
 SECTOR_CENTRES = {
@@ -40,6 +45,9 @@ class OmniFusion:
     def __init__(self, interval_s=5.0, enabled=True, classifier=classify_views):
         load_env(REPO_ROOT / ".env")
         self.enabled = enabled and bool(os.environ.get("YIBU_API_KEY", "").strip())
+        self._disabled_result = {
+            "error": "Huawei OMNI advisor is disabled or YIBU_API_KEY is missing"
+        }
         self.interval_s = max(float(interval_s), 1.0)
         self.classifier = classifier
         self._frames = {}
@@ -57,10 +65,12 @@ class OmniFusion:
     def observe_scan(self, scan, direction):
         """Return the newest result and start a due analysis without blocking."""
         if not self.enabled:
-            return None
+            return self._disabled_result
         now = time.monotonic()
         with self._lock:
-            ready = len(self._frames) == 2 and direction != "stopped"
+            # The dashboard should keep a current visual reading even while the
+            # robot is stopped. LiDAR remains the collision-safety authority.
+            ready = len(self._frames) == 2
             due = now - self._last_started >= self.interval_s
             busy = self._worker is not None and self._worker.is_alive()
             if ready and due and not busy:
@@ -82,10 +92,12 @@ class OmniFusion:
     def _classify(self, views, lidar, direction):
         try:
             result = self.classifier(
-                views, lidar, "live_robot_perception", direction
+                views, lidar, "live_robot_perception", direction,
+                LIVE_SYSTEM_PROMPT,
             )
         except Exception as error:
             result = {"error": "%s: %s" % (type(error).__name__, error)}
+        result["updated_at"] = time.time()
         with self._lock:
             self._result = result
 

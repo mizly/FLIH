@@ -37,6 +37,17 @@ Treat LiDAR distances as stronger evidence for clearance and collision risk, and
 the images as stronger evidence for semantic labels. Never override an explicit
 LiDAR distance with an estimate from an image."""
 
+LIVE_SYSTEM_PROMPT = """You are the live forward-obstacle checker for a small indoor mobile robot.
+Use both labelled camera views and the optional LiDAR summary. The two cameras face
+generally forward. Decide only whether an obstacle appears ahead in the robot's
+path; do not guess about objects outside the views. LiDAR distances are stronger
+evidence for clearance and collision risk than an image estimate. Return ONLY one
+valid JSON object with:
+obstacle_ahead (boolean), obstacle_distance_m (number or null),
+obstacle_summary (short human-readable sentence), confidence (number from 0 to 1),
+and reasoning (one short string). If the sensors disagree or the view is unclear,
+set obstacle_ahead to true conservatively and explain the uncertainty."""
+
 
 def load_env(path: Path) -> None:
     """Load simple KEY=VALUE entries without overriding the process environment."""
@@ -98,6 +109,7 @@ def classify_views(
     lidar: Any | None,
     purpose: str,
     direction: str | None = None,
+    system_prompt: str = SYSTEM_PROMPT,
 ) -> dict[str, Any]:
     if not views:
         raise ValueError("at least one camera view is required")
@@ -125,7 +137,7 @@ def classify_views(
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": content},
         ],
         "temperature": 0.1,

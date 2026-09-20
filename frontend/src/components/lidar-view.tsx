@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Radar, CircleOff } from "lucide-react";
+import type { OmniReading } from "@/lib/perception";
 
 type Link = "connecting" | "connected" | "disconnected";
 
@@ -43,6 +44,7 @@ type Scan = {
   safetyDirection?: "forward" | "reverse" | "stopped";
   safetyClearance?: number | null;
   flyAdvice?: FlyAdvice;
+  omni?: OmniReading;
   angles: number[];
   ranges: number[];
 };
@@ -57,9 +59,10 @@ const SIZE = 520;
 type LidarViewProps = {
   onSafetySignalChange?: (signal: "red" | "yellow" | "green" | null) => void;
   onFlyAdviceChange?: (advice: FlyAdvice | null) => void;
+  onOmniChange?: (reading: OmniReading | null) => void;
 };
 
-export function LidarView({ onSafetySignalChange, onFlyAdviceChange }: LidarViewProps) {
+export function LidarView({ onSafetySignalChange, onFlyAdviceChange, onOmniChange }: LidarViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scanRef = useRef<Scan | null>(null);
   const lastScanRef = useRef(0);
@@ -154,6 +157,7 @@ export function LidarView({ onSafetySignalChange, onFlyAdviceChange }: LidarView
         lastScanRef.current = performance.now();
         onSafetySignalChange?.(scan.safetySignal ?? null);
         onFlyAdviceChange?.(scan.flyAdvice ?? null);
+        onOmniChange?.(scan.omni ?? null);
         setSummary(scan);
       });
       socket.addEventListener("close", () => {
@@ -161,6 +165,7 @@ export function LidarView({ onSafetySignalChange, onFlyAdviceChange }: LidarView
         setPublisherOnline(false);
         onSafetySignalChange?.(null);
         onFlyAdviceChange?.(null);
+        onOmniChange?.(null);
         if (!disposed) retryTimer = setTimeout(connect, 1500);
       });
       socket.addEventListener("error", () => socket?.close());
@@ -172,7 +177,7 @@ export function LidarView({ onSafetySignalChange, onFlyAdviceChange }: LidarView
       if (retryTimer) clearTimeout(retryTimer);
       socket?.close(1000, "Page closed");
     };
-  }, [onFlyAdviceChange, onSafetySignalChange]);
+  }, [onFlyAdviceChange, onOmniChange, onSafetySignalChange]);
 
   // Redraw whenever a turn or the zoom changes. Six to ten scans a second is well
   // inside what a canvas of this size does comfortably, so there is no frame loop.
@@ -186,11 +191,12 @@ export function LidarView({ onSafetySignalChange, onFlyAdviceChange }: LidarView
         scanRef.current = null;
         onSafetySignalChange?.(null);
         onFlyAdviceChange?.(null);
+        onOmniChange?.(null);
         setSummary(null);
       }
     }, 500);
     return () => clearInterval(timer);
-  }, [onFlyAdviceChange, onSafetySignalChange]);
+  }, [onFlyAdviceChange, onOmniChange, onSafetySignalChange]);
 
   const status = live
     ? summary?.demo

@@ -16,7 +16,12 @@ SERVICES="robot_websocket camera_stream lidar_stream"
 cd "$ROOT"
 mkdir -p "$RUN"
 
-if [ -f .env ]; then set -a; . ./.env; set +a; fi
+if [ -f "$ROOT/scripts/.env" ]; then
+  set -a; . "$ROOT/scripts/.env"; set +a
+elif [ -f "$ROOT/.env" ]; then
+  # Backward-compatible fallback for older Jetson setups.
+  set -a; . "$ROOT/.env"; set +a
+fi
 
 : "${ROBOT_WS_URL:=ws://127.0.0.1:3000/ws/robot}"
 : "${ROBOT_CAMERA_WS_URL:=ws://127.0.0.1:3000/ws/camera}"

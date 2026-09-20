@@ -29,7 +29,7 @@ class SummaryTests(unittest.TestCase):
 
 
 class FusionTests(unittest.TestCase):
-    def test_cloud_call_requires_both_views_and_motion(self):
+    def test_cloud_call_requires_both_views_but_not_motion(self):
         calls = []
 
         def classify(*args):
@@ -43,12 +43,11 @@ class FusionTests(unittest.TestCase):
             self.assertEqual(calls, [])
             fusion.offer_camera(1, b"right")
             fusion.observe_scan(FakeScan(), "stopped")
-            self.assertEqual(calls, [])
-            fusion.observe_scan(FakeScan(), "forward")
             fusion._worker.join(timeout=1)
             self.assertEqual(len(calls), 1)
             self.assertEqual([view[0] for view in calls[0][0]], ["left", "right"])
-            self.assertEqual(calls[0][3], "forward")
+            self.assertEqual(calls[0][3], "stopped")
+            self.assertEqual(calls[0][4], mock.ANY)
             fusion.close()
 
     def test_no_key_disables_calls(self):
