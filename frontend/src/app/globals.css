@@ -248,7 +248,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .lidar-zoom { min-width: 34px; min-height: 29px; padding: 3px 6px; color: #e7e4dd; border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 7px 4px 8px 5px; background: rgba(255, 255, 255, 0.08); font-size: 11px; font-weight: 700; }
 .lidar-zoom:hover { color: var(--ink); background: var(--yellow); }
 .lidar-zoom.is-active { color: white; border-color: white; background: var(--blue); }
-.control-card { position: relative; width: 100%; margin: 0; padding: 13px 15px 11px; text-align: left; border: 3px solid var(--ink); border-radius: 31px 17px 28px 15px / 17px 29px 16px 27px; background: var(--yellow); box-shadow: 6px 6px 0 var(--ink); transform: rotate(-0.8deg); }
+.control-card { position: relative; width: 100%; margin: 0; padding: 13px 15px 11px; text-align: left; border: 3px solid var(--ink); border-radius: 31px 17px 28px 15px / 17px 29px 16px 27px; background: var(--yellow); box-shadow: 6px 6px 0 var(--ink); transform: rotate(-0.8deg); transition: background 0.3s ease, box-shadow 0.3s ease; }
+.control-card.is-lidar-near { background: #fff2a8; box-shadow: 6px 6px 0 var(--ink), 0 0 18px 3px rgba(246, 194, 34, 0.48), inset 0 0 18px rgba(255, 221, 58, 0.2); }
+.control-card.is-lidar-danger { background: #ffc9c1; border-color: #8f2020; box-shadow: 6px 6px 0 var(--ink), 0 0 26px 7px rgba(205, 35, 35, 0.58), inset 0 0 22px rgba(255, 65, 45, 0.22); }
 .control-tack { position: absolute; top: 11px; right: 19px; width: 14px; height: 14px; border: 2px solid var(--ink); border-radius: 50%; background: var(--accent); box-shadow: 2px 2px 0 rgba(45, 45, 45, 0.28); }
 .control-title-row { display: flex; align-items: center; gap: 9px; }
 .control-icon { flex: 0 0 auto; width: 42px; height: 42px; display: grid; place-items: center; color: white; border: 2px solid var(--ink); border-radius: 54% 46% 62% 38% / 47% 58% 42% 53%; background: var(--blue); transform: rotate(3deg); }

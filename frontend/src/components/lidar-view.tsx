@@ -18,6 +18,9 @@ type Scan = {
   reportedHz: number;
   maxRange: number;
   demo: boolean;
+  safetySignal?: "red" | "yellow" | "green";
+  safetyDirection?: "forward" | "reverse" | "stopped";
+  safetyClearance?: number | null;
   angles: number[];
   ranges: number[];
 };
@@ -29,7 +32,11 @@ const STALE_MS = 1500;
 const ZOOMS = [2, 4, 8, 12];
 const SIZE = 520;
 
-export function LidarView() {
+type LidarViewProps = {
+  onSafetySignalChange?: (signal: "red" | "yellow" | "green" | null) => void;
+};
+
+export function LidarView({ onSafetySignalChange }: LidarViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const scanRef = useRef<Scan | null>(null);
   const lastScanRef = useRef(0);
@@ -122,11 +129,13 @@ export function LidarView() {
         if (!Array.isArray(scan.ranges) || !Array.isArray(scan.angles)) return;
         scanRef.current = scan;
         lastScanRef.current = performance.now();
+        onSafetySignalChange?.(scan.safetySignal ?? null);
         setSummary(scan);
       });
       socket.addEventListener("close", () => {
         setLink("disconnected");
         setPublisherOnline(false);
+        onSafetySignalChange?.(null);
         if (!disposed) retryTimer = setTimeout(connect, 1500);
       });
       socket.addEventListener("error", () => socket?.close());
@@ -150,11 +159,12 @@ export function LidarView() {
       setLive(fresh);
       if (!fresh && scanRef.current !== null) {
         scanRef.current = null;
+        onSafetySignalChange?.(null);
         setSummary(null);
       }
     }, 500);
     return () => clearInterval(timer);
-  }, []);
+  }, [onSafetySignalChange]);
 
   const status = live
     ? summary?.demo

@@ -18,6 +18,7 @@ import { Fly } from "./fly";
 
 type Connection = "connecting" | "connected" | "disconnected";
 type Direction = "w" | "a" | "s" | "d";
+type LidarAlert = "clear" | "near" | "danger";
 
 const directionKeys = new Set<Direction>(["w", "a", "s", "d"]);
 
@@ -28,9 +29,20 @@ export function RobotControl() {
   const [connection, setConnection] = useState<Connection>("connecting");
   const [robotConnected, setRobotConnected] = useState(false);
   const [controllerAvailable, setControllerAvailable] = useState(true);
+  const [lidarAlert, setLidarAlert] = useState<LidarAlert>("clear");
   const [message, setMessage] = useState("Connecting to control server…");
   const enabled =
     connection === "connected" && robotConnected && controllerAvailable;
+
+  const handleSafetySignalChange = useCallback((signal: "red" | "yellow" | "green" | null) => {
+    setLidarAlert(
+      signal === null || signal === "green"
+        ? "clear"
+        : signal === "red"
+          ? "danger"
+          : "near",
+    );
+  }, []);
 
   const sendDrive = useCallback(() => {
     const socket = socketRef.current;
@@ -191,10 +203,13 @@ export function RobotControl() {
             <div className="instrument-label">
               <span>02</span> LiDAR notebook
             </div>
-            <LidarView />
+            <LidarView onSafetySignalChange={handleSafetySignalChange} />
           </div>
 
-          <section className="control-card" aria-labelledby="control-title">
+          <section
+            className={`control-card ${lidarAlert === "near" ? "is-lidar-near" : ""} ${lidarAlert === "danger" ? "is-lidar-danger" : ""}`}
+            aria-labelledby="control-title"
+          >
             <span className="control-tack" aria-hidden="true" />
             <div className="control-title-row">
               <div className="control-icon">
