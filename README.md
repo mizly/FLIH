@@ -78,7 +78,15 @@ serves the Next.js app and the `/ws/*` robot, camera, and LiDAR endpoints from
 one process. Render must have `ROBOT_API_KEY` set to the same secret used by the
 Jetson; `YIBU_API_KEY` is only needed for the optional OMNI advisor.
 
-After deployment, use the Render URL for the Jetson WebSocket settings with
-`wss://` (for example, `wss://your-service.onrender.com/ws/robot`).
+After deployment, put the Jetson WebSocket settings in `scripts/.env`. The
+hardware launcher loads that file automatically. Use the Render URL with
+`wss://`, for example:
+
+```sh
+ROBOT_WS_URL=wss://your-service.onrender.com/ws/robot
+ROBOT_CAMERA_WS_URL=wss://your-service.onrender.com/ws/camera
+ROBOT_LIDAR_WS_URL=wss://your-service.onrender.com/ws/lidar
+ROBOT_API_KEY=the-same-value-as-render
+```
 
 Browser tests expect the local server on port 3000 and Microsoft Edge installed. They cover the onboarding wizard, editable routes, mobile layout, map controls, captcha-free guide requests, and unauthorized API requests.

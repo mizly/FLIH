@@ -2,6 +2,7 @@ node_modules/
 .next/
 .env*
 !.env.example
+!scripts/.env.example
 .data/
 *.tsbuildinfo
 test-results/

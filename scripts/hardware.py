@@ -73,20 +73,23 @@ DEFAULT_WS = "ws://localhost:3000"
 
 
 def load_env():
-    """Read .env into os.environ without a dependency on python-dotenv.
+    """Read scripts/.env into os.environ without python-dotenv.
 
     Nothing under backend/ loads it: robot_websocket.py and the two publishers read
     os.environ directly, so ROBOT_API_KEY has to be in the environment before they
-    start or they raise on import. Existing variables win, so a one-off export on
-    the command line still overrides the file.
+    start or they raise on import. The file accepts normal dotenv assignments and
+    shell-style ``export NAME=value`` lines. Existing variables win, so a one-off
+    export on the command line still overrides the file.
     """
-    path = ROOT / ".env"
+    path = Path(__file__).resolve().with_name(".env")
     if not path.exists():
         return
     for line in path.read_text().splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
         key, _, value = line.partition("=")
         key, value = key.strip(), value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
