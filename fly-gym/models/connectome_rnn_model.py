@@ -6,6 +6,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 
+
+def _edge_weight_gradients(grad_output, x, coo_rows, col_indices, tile_size=65536):
+    """Reduce over the complete batch, bounding temporary storage by edge tiles.
+
+    Tiling edges does not split the batch reduction or change its weighting.
+    At batch 64 in float32, three tile intermediates occupy about 48 MiB,
+    instead of about 2.7 GiB for 3.73 million edges at once.
+    """
+    result = x.new_empty(coo_rows.numel())
+    for start in range(0, coo_rows.numel(), tile_size):
+        end = min(start + tile_size, coo_rows.numel())
+        result[start:end] = (
+            grad_output[:, coo_rows[start:end]] * x[:, col_indices[start:end]]
+        ).sum(dim=0)
+    return result
+
 # -----------------------------------------------------------------------------
 # CUSTOM AUTOGRAD FUNCTION (Hybrid CSR/COO)
 # -----------------------------------------------------------------------------
@@ -58,12 +74,7 @@ class MemoryEfficientSparseMM(torch.autograd.Function):
         
         # Gather specific rows from grad_output and columns from input x
         # coo_rows and col_indices are shape (NNZ,)
-        grad_out_gathered = grad_output[:, coo_rows] 
-        x_gathered = x[:, col_indices]
-        
-        # Element-wise multiply and sum over batch dimension
-        # Result: (NNZ,) - Same size as 'values'
-        grad_values = torch.sum(grad_out_gathered * x_gathered, dim=0)
+        grad_values = _edge_weight_gradients(grad_output, x, coo_rows, col_indices)
         
         # Return gradients matching forward signature:
         # (values, crow_indices, col_indices, coo_rows, shape, x)
@@ -104,6 +115,10 @@ class LeakyConnectomeRNNCell(nn.Module):
         # CSR Indices (For Fast Forward Pass)
         self.register_buffer("W_crow_indices", Wcsr.crow_indices())
         self.register_buffer("W_col_indices", Wcsr.col_indices())
+        # Shape is fixed by the architecture. Keep Python metadata for the hot
+        # path: W_size.tolist() would synchronize CUDA on every recurrent step.
+        self._W_shape = tuple(Wcsr.shape)
+        # Retain the existing buffer so older state_dict checkpoints still load.
         self.register_buffer("W_size", torch.tensor(Wcsr.shape, dtype=torch.int64))
         
         # COO Indices (For Fast Backward Pass)
@@ -191,7 +206,7 @@ class LeakyConnectomeRNNCell(nn.Module):
             self.W_crow_indices,
             self.W_col_indices,
             self.W_coo_rows,
-            tuple(self.W_size.tolist()),
+            self._W_shape,
             h
         )
         

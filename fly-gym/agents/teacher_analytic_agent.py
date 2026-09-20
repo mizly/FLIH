@@ -121,8 +121,8 @@ class PlannerAnalyticTeacher:
         if self._rec_step_count < self.recovery_back_steps :
             self._rec_phase = "back"
         if self._rec_step_count >= self.recovery_back_steps:
-            self._rec_phase = "back" 
-        if self._rec_step_count == self.recovery_back_steps + self.recovery_turn_steps:
+            self._rec_phase = "turn"
+        if self._rec_step_count >= self.recovery_back_steps + self.recovery_turn_steps:
             self._rec_phase = None
             self._rec_step_count = 0
             replan = True
