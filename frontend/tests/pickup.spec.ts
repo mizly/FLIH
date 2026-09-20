@@ -28,7 +28,7 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
   await page.mouse.up();
   await expect(page.getByLabel("Going to")).toHaveValue("r6007");
   await expect(page.getByText(/m · scroll to zoom/)).toBeVisible();
-  await expect(page.locator(".destination-route")).toHaveAttribute("marker-mid", "url(#route-arrow)");
+  await expect(page.locator(".end-route")).toHaveAttribute("marker-mid", "url(#route-arrow)");
   await page.getByRole("button", { name: "Zoom out" }).click();
   await page.getByRole("button", { name: "Zoom out" }).click();
   await page.getByRole("button", { name: "Zoom out" }).click();
@@ -72,6 +72,22 @@ test("intro opens from the FLIH menu instead of on page load", async ({ page }) 
   await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toHaveCount(0);
 });
 
+test("a waypoint click opens route actions", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "View details for Room 6004" }).click();
+  const details = page.getByRole("region", { name: "Room 6004 waypoint details" });
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("button", { name: "Set as end" })).toBeVisible();
+  const positionBeforeZoom = await details.boundingBox();
+  await page.getByRole("button", { name: "Zoom out" }).click();
+  await expect(details).toBeVisible();
+  await expect.poll(async () => (await details.boundingBox())?.x).not.toBe(positionBeforeZoom?.x);
+  await details.getByRole("button", { name: "Set as start" }).click();
+  await expect(page.getByLabel("Starting from")).toHaveValue("e7");
+  await page.locator(".campus-svg").click({ position: { x: 10, y: 10 } });
+  await expect(details).toHaveCount(0);
+});
+
 test("mobile route panel fits the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
@@ -94,7 +110,7 @@ test("mobile route panel fits the viewport", async ({ page }) => {
 
 test("queue requests no longer require a captcha", async ({ request }) => {
   const username = `test_${Date.now().toString().slice(-8)}`;
-  const join = await request.post("/api/flih", { data: { username, pickup: "dc", destination: "e7" } });
+  const join = await request.post("/api/flih", { data: { username, pickup: "dc", end: "e7" } });
   expect(join.status()).toBe(200);
   expect(await join.json()).toEqual({ ok: true });
   const telemetry = await request.patch("/api/flih", { data: { x: 1, y: 1, battery: 80, status: "available" } });

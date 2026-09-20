@@ -20,7 +20,7 @@ Open http://127.0.0.1:3000. Manual WASD control is at http://127.0.0.1:3000/cont
 ## What works
 
 - Calibrated E5/E7 sixth-floor plan with selectable indoor stops, shortest-path routing, zoom, and robot centering.
-- Fullscreen route map with guided start and destination onboarding.
+- Fullscreen route map with guided start and end onboarding.
 - Editable route panel and shared first-in, first-out guide queue with no accounts.
 - Anonymous HTTP-only session cookie, reservation recovery on refresh, and cancellation.
 - Five-second updates, connection errors, queue limits, and duplicate-name checks.

@@ -272,7 +272,7 @@ export type QueueEntry = {
   id: string;
   username: string;
   pickup: PlaceId;
-  destination: PlaceId;
+  end: PlaceId;
   createdAt: number;
   lastSeenAt?: number;
 };

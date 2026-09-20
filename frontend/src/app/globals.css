@@ -69,7 +69,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .route-network { stroke: #738092; stroke-width: 3; stroke-dasharray: 9 13; opacity: .17; fill: none; }
 .active-route { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .pickup-route { stroke: #7d8792; stroke-width: 7; stroke-dasharray: 9 14; opacity: .5; }
-.destination-route { stroke: var(--blue); stroke-width: 10; stroke-dasharray: 20 13; animation: route-move 18s linear infinite; }
+.end-route { stroke: var(--blue); stroke-width: 10; stroke-dasharray: 20 13; animation: route-move 18s linear infinite; }
 @keyframes route-move { to { stroke-dashoffset: -300; } }
 .room-model-anchor { cursor: pointer; }
 .room-model-anchor-ring { fill: rgba(237,77,77,.15); stroke: var(--accent); stroke-width: 3; animation: room-anchor-pulse 1.8s ease-in-out infinite; }
@@ -91,6 +91,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .endpoint-marker.is-dragging .endpoint-marker-body { animation: endpoint-pickup-wiggle .48s ease-in-out infinite alternate; }
 .endpoint-pickup-shadow { fill: rgba(32, 33, 36, .22); animation: endpoint-shadow-pulse .48s ease-in-out infinite alternate; pointer-events: none; }
 .endpoint-drag-hint { position: absolute; z-index: 6; left: 50%; top: 78px; transform: translateX(-50%); padding: 8px 14px; border: 1px solid rgba(32,33,36,.14); border-radius: 99px; color: var(--ink); background: rgba(255,254,250,.95); box-shadow: 0 7px 22px rgba(31,33,36,.14); font-size: 15px; font-weight: 700; pointer-events: none; white-space: nowrap; }
+.map-place-popover { overflow: visible; }
+.map-place-card { position: relative; width: 310px; padding: 15px; border: 1px solid rgba(32,33,36,.14); border-radius: 17px; background: rgba(255,254,250,.96); box-shadow: 0 12px 34px rgba(31,33,36,.18); backdrop-filter: blur(12px); }
+.map-place-card::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 16px; height: 16px; border-right: 1px solid rgba(32,33,36,.14); border-bottom: 1px solid rgba(32,33,36,.14); background: rgba(255,254,250,.96); transform: translateX(-50%) rotate(45deg); }
+.map-place-card-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.map-place-card-heading > div { display: grid; gap: 3px; min-width: 0; }
+.map-place-card-kicker { display: flex; align-items: center; gap: 5px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 11px; font-weight: 700; }
+.map-place-card-heading strong { font-family: "Kalam", cursive; font-size: 22px; line-height: 1.05; }
+.map-place-card-close { display: grid; place-items: center; width: 29px; height: 29px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 9px; background: white; }
+.map-place-card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.map-place-card-actions .sketch-button { min-height: 40px; padding: 7px 8px; font-size: 14px; }
 @keyframes endpoint-pickup-wiggle {
   0% { transform: translate(-1px, -10px) rotate(-4deg) scale(1.08); }
   100% { transform: translate(1px, -13px) rotate(4deg) scale(1.12); }

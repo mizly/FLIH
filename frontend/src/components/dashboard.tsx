@@ -14,7 +14,7 @@ export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [connectionError, setConnectionError] = useState(false);
   const [pickup, setPickup] = useState<PlaceId | null>(null);
-  const [destination, setDestination] = useState<PlaceId | null>(null);
+  const [end, setEnd] = useState<PlaceId | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
@@ -53,64 +53,64 @@ export function Dashboard() {
   const mine = data?.queue.find((entry) => entry.id === data.mine);
   const position = useMemo(() => mine ? (data?.queue.findIndex((entry) => entry.id === mine.id) ?? -1) + 1 : 0, [data?.queue, mine]);
   const shownPickup = mine?.pickup ?? pickup;
-  const shownDestination = mine?.destination ?? destination;
+  const shownEnd = mine?.end ?? end;
   const offline = connectionError || data?.robot.status === "offline";
 
-  function chooseDestination(id: PlaceId) {
-    setDestination(id);
+  function chooseEnd(id: PlaceId) {
+    setEnd(id);
     setError("");
   }
 
-  async function updateQueuedRoute(nextPickup: PlaceId, nextDestination: PlaceId) {
-    if (!mine || nextPickup === nextDestination) return;
+  async function updateQueuedRoute(nextPickup: PlaceId, nextEnd: PlaceId) {
+    if (!mine || nextPickup === nextEnd) return;
     const previousPickup = mine.pickup;
-    const previousDestination = mine.destination;
+    const previousEnd = mine.end;
     setError("");
     setData((current) => current ? {
       ...current,
-      queue: current.queue.map((entry) => entry.id === mine.id ? { ...entry, pickup: nextPickup, destination: nextDestination } : entry),
+      queue: current.queue.map((entry) => entry.id === mine.id ? { ...entry, pickup: nextPickup, end: nextEnd } : entry),
     } : current);
     try {
       const response = await fetch("/api/flih", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "update-route", pickup: nextPickup, destination: nextDestination }),
+        body: JSON.stringify({ action: "update-route", pickup: nextPickup, end: nextEnd }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Couldnâ€™t update your route.");
     } catch (updateError) {
       setData((current) => current ? {
         ...current,
-        queue: current.queue.map((entry) => entry.id === mine.id ? { ...entry, pickup: previousPickup, destination: previousDestination } : entry),
+        queue: current.queue.map((entry) => entry.id === mine.id ? { ...entry, pickup: previousPickup, end: previousEnd } : entry),
       } : current);
       setError(updateError instanceof Error ? updateError.message : "Couldnâ€™t update your route.");
     }
   }
 
   function changePickup(id: PlaceId) {
-    if (mine && shownDestination) void updateQueuedRoute(id, shownDestination);
+    if (mine && shownEnd) void updateQueuedRoute(id, shownEnd);
     else {
       setPickup(id);
       setError("");
     }
   }
 
-  function changeDestination(id: PlaceId) {
+  function changeEnd(id: PlaceId) {
     if (mine && shownPickup) void updateQueuedRoute(shownPickup, id);
-    else chooseDestination(id);
+    else chooseEnd(id);
   }
 
   async function requestGuide(event: React.FormEvent) {
     event.preventDefault();
-    if (!pickup || !destination) return setError("Choose a starting point and destination.");
-    if (pickup === destination) return setError("Choose two different locations.");
+    if (!pickup || !end) return setError("Choose a starting point and end.");
+    if (pickup === end) return setError("Choose two different locations.");
     setBusy(true);
     setError("");
     try {
       const response = await fetch("/api/flih", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, pickup, destination }),
+        body: JSON.stringify({ username, pickup, end }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Please try again.");
@@ -145,7 +145,7 @@ export function Dashboard() {
   function restart() {
     setError("");
     setPickup(null);
-    setDestination(null);
+    setEnd(null);
   }
 
   return (
@@ -170,9 +170,9 @@ export function Dashboard() {
         <CampusMap
           robot={data?.robot ?? null}
           pickup={shownPickup}
-          destination={shownDestination}
+          end={shownEnd}
           onPickup={changePickup}
-          onDestination={changeDestination}
+          onEnd={changeEnd}
         />
       </section>
 
@@ -180,7 +180,7 @@ export function Dashboard() {
           <div className="route-panel-content">
           <div className="panel-handle" aria-hidden="true" />
           <div className="panel-heading">
-            <div><span className="panel-kicker"><Sparkles size={14} /> Your route</span><h1>{shownPickup && shownDestination ? "Ready to go" : "Plan your route"}</h1></div>
+            <div><span className="panel-kicker"><Sparkles size={14} /> Your route</span><h1>{shownPickup && shownEnd ? "Ready to go" : "Plan your route"}</h1></div>
             <button className="icon-button" type="button" onClick={restart} aria-label="Clear route" disabled={Boolean(mine)}><RotateCcw size={17} /></button>
           </div>
           <div className="route-editor">
@@ -192,14 +192,14 @@ export function Dashboard() {
               </select>
             </label>
             <label><span>Going to</span>
-              <select aria-label="Going to" value={shownDestination ?? ""} onChange={(event) => changeDestination(event.target.value as PlaceId)}>
+              <select aria-label="Going to" value={shownEnd ?? ""} onChange={(event) => changeEnd(event.target.value as PlaceId)}>
                 <option value="" disabled>Select end</option>
                 {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
               </select>
             </label>
           </div>
-          {shownPickup && shownDestination && shownPickup === shownDestination && <p className="error-message" role="alert">Choose two different locations.</p>}
-          <div className="trip-summary"><span><Footprints size={16} /> {shownPickup && shownDestination ? "Follow the highlighted route" : "Choose start and end"}</span><span><BatteryMedium size={16} /> {data ? `${Math.round(data.robot.battery)}%` : "—"}</span></div>
+          {shownPickup && shownEnd && shownPickup === shownEnd && <p className="error-message" role="alert">Choose two different locations.</p>}
+          <div className="trip-summary"><span><Footprints size={16} /> {shownPickup && shownEnd ? "Follow the highlighted route" : "Choose start and end"}</span><span><BatteryMedium size={16} /> {data ? `${Math.round(data.robot.battery)}%` : "—"}</span></div>
           {mine ? (
             <div className="queue-result">
               <div className="success-badge"><Check size={18} /> Guide requested</div>
@@ -211,7 +211,7 @@ export function Dashboard() {
               <label htmlFor="username"><span>Want FLIH to guide you?</span></label>
               <div className="name-row">
                 <input id="username" aria-label="Your name" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your name" required minLength={2} maxLength={20} pattern="[\p{L}\p{N}_ .\-]{2,20}" autoComplete="nickname" />
-                <Button type="submit" disabled={busy || offline || !pickup || !destination || pickup === destination}>{busy ? "Requesting…" : "Request guide"} <ArrowRight size={18} /></Button>
+                <Button type="submit" disabled={busy || offline || !pickup || !end || pickup === end}>{busy ? "Requesting…" : "Request guide"} <ArrowRight size={18} /></Button>
               </div>
               <small>No account needed.</small>
             </form>
