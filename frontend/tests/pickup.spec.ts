@@ -61,6 +61,17 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("room routes continue along the hallway to the destination", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Starting from").fill("Room 6414");
+  await page.getByLabel("Going to").fill("Room 6107");
+
+  const path = await page.locator(".end-route").getAttribute("d");
+  expect(path).toBe(
+    "M363.5 786.5 L363.5 645.5 L731 645.5 L993 645.5 L1256.5 645.5 L1256.5 920.5",
+  );
+});
+
 test("intro opens from the FLIH menu instead of on page load", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Get there with FLIH." })).toHaveCount(0);

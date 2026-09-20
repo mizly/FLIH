@@ -148,7 +148,14 @@ export const routeEdges = [
 
 function roomWaypoint(id: string, x: number, y: number) {
   const marker = floorPoint(x, y);
-  return { id: `room-${id}`, name: `Room ${id}`, short: id, node: nearestRouteNode(marker), marker };
+  return {
+    id: `room-${id}`,
+    name: `Room ${id}`,
+    short: id,
+    node: nearestRouteNode(marker),
+    marker,
+    corridor: nearestCorridorLocation(marker),
+  };
 }
 
 const additionalRoomWaypoints = [
@@ -246,12 +253,35 @@ export const places = [
   short: string;
   node: RouteNodeId;
   marker?: Point;
+  corridor?: CorridorLocation;
 }[];
 
 export type PlaceId = (typeof places)[number]["id"];
 
 function distance(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+type CorridorLocation = {
+  point: Point;
+  edge: readonly [RouteNodeId, RouteNodeId];
+};
+
+function nearestCorridorLocation(point: Point): CorridorLocation {
+  return routeEdges.reduce<CorridorLocation>((nearest, edge) => {
+    const start = routeNodes[edge[0]];
+    const end = routeNodes[edge[1]];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    const progress = lengthSquared === 0
+      ? 0
+      : Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+    const projected = { x: start.x + progress * dx, y: start.y + progress * dy };
+    return distance(point, projected) < distance(point, nearest.point)
+      ? { point: projected, edge }
+      : nearest;
+  }, { point: routeNodes[routeEdges[0][0]], edge: routeEdges[0] });
 }
 
 export function nearestRouteNode(point: Point): RouteNodeId {
@@ -310,14 +340,57 @@ export function routePoints(from: RouteNodeId, to: RouteNodeId): Point[] {
   return findRoute(from, to).map((id) => routeNodes[id]);
 }
 
-export function routeLengthMeters(points: Point[]) {
-  return (
-    points.reduce(
-      (total, point, index) =>
-        index === 0 ? total : total + distance(points[index - 1], point),
-      0,
-    ) / pixelsPerMeter
+type RoutablePlace = {
+  node: RouteNodeId;
+  corridor?: CorridorLocation;
+};
+
+function samePoint(a: Point, b: Point) {
+  return a.x === b.x && a.y === b.y;
+}
+
+function withoutRepeatedPoints(points: Point[]) {
+  return points.filter((point, index) => index === 0 || !samePoint(point, points[index - 1]));
+}
+
+/** Route between room-level corridor positions instead of stopping at a junction. */
+export function routePointsForPlaces(from: RoutablePlace, to: RoutablePlace): Point[] {
+  const fromPoint = from.corridor?.point ?? routeNodes[from.node];
+  const toPoint = to.corridor?.point ?? routeNodes[to.node];
+  const fromConnections = from.corridor
+    ? from.corridor.edge.map((node) => ({ node, cost: distance(fromPoint, routeNodes[node]) }))
+    : [{ node: from.node, cost: 0 }];
+  const toConnections = to.corridor
+    ? to.corridor.edge.map((node) => ({ node, cost: distance(toPoint, routeNodes[node]) }))
+    : [{ node: to.node, cost: 0 }];
+
+  let shortest = { cost: Infinity, points: [fromPoint] };
+  for (const start of fromConnections) {
+    for (const end of toConnections) {
+      const middle = routePoints(start.node, end.node);
+      const points = withoutRepeatedPoints([fromPoint, ...middle, toPoint]);
+      const cost = start.cost + routeLengthPixels(middle) + end.cost;
+      if (cost < shortest.cost) shortest = { cost, points };
+    }
+  }
+
+  if (from.corridor && to.corridor && from.corridor.edge === to.corridor.edge) {
+    const directCost = distance(fromPoint, toPoint);
+    if (directCost < shortest.cost) shortest = { cost: directCost, points: withoutRepeatedPoints([fromPoint, toPoint]) };
+  }
+
+  return shortest.points;
+}
+
+function routeLengthPixels(points: Point[]) {
+  return points.reduce(
+    (total, point, index) => index === 0 ? total : total + distance(points[index - 1], point),
+    0,
   );
+}
+
+export function routeLengthMeters(points: Point[]) {
+  return routeLengthPixels(points) / pixelsPerMeter;
 }
 
 export type QueueEntry = {
