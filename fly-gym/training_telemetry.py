@@ -84,7 +84,7 @@ class TrainingTelemetry:
                 iteration=self.data["iteration"], loss=value))
             self.data["loss_history"] = self.data["loss_history"][-2000:]
 
-    def episode(self, *, reward, steps, success, collision, distance):
+    def episode(self, *, reward, steps, success, collision, distance, termination_reason=None):
         with self.lock:
             self.data["episodes_total"] += 1
             self.data["successes"] += int(success)
@@ -92,7 +92,8 @@ class TrainingTelemetry:
             self.data["episodes"].append(dict(
                 episode=self.data["episodes_total"], iteration=self.data["iteration"],
                 reward=float(reward), steps=int(steps), success=bool(success),
-                collision=bool(collision), distance=float(distance)))
+                collision=bool(collision), distance=float(distance),
+                termination_reason=termination_reason))
             self.data["episodes"] = self.data["episodes"][-200:]
 
     def iteration_result(self, loss, batches):
