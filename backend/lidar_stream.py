@@ -32,11 +32,15 @@ import signal
 import sys
 import threading
 import time
+from pathlib import Path
 
 import websocket
 
 import lidar as lidar_module
+from fly_advisor import DEFAULT_CHECKPOINT, FlyPolicyAdvisor
 from lidar import TminiPlus
+from omni_fusion import OmniFusion
+from safety_signal import DirectionalSafetyIndicator, load_led_output
 
 # A turn is ~667 points and the scanner tops out near 10 Hz, so publishing every
 # revolution costs well under a tenth of what the video link does. No point rounding
@@ -77,10 +81,33 @@ def parse_args(argv=None):
     parser.add_argument("--demo", action="store_true",
                         help="synthesise a scan instead of opening the port, to "
                              "exercise the web path with no scanner attached")
+    parser.add_argument("--led-driver", default=os.environ.get("ROBOT_LED_DRIVER", ""),
+                        help="optional LED output as module:factory; no hardware by default")
+    parser.add_argument("--safety-sector-deg", type=float,
+                        default=float(os.environ.get("ROBOT_LED_SECTOR_DEGREES", "90")),
+                        help="width of the forward/reverse clearance cone (default: 90)")
+    parser.add_argument("--omni-interval", type=float,
+                        default=float(os.environ.get("ROBOT_OMNI_INTERVAL", "5")),
+                        help="minimum seconds between OMNI fusion calls (default: 5)")
+    parser.add_argument("--no-omni", action="store_true",
+                        help="disable camera/LiDAR OMNI fusion even when a key is configured")
+    parser.add_argument("--fly-checkpoint", type=Path,
+                        default=Path(os.environ.get("ROBOT_FLY_CHECKPOINT", DEFAULT_CHECKPOINT)),
+                        help="connectome checkpoint used for advisory steering")
+    parser.add_argument("--no-fly-policy", action="store_true",
+                        help="disable the experimental connectome policy advisor")
     return parser.parse_args(argv)
 
 
-def payload(scan, args, demo=False):
+def payload(scan, args, demo=False, safety=None, omni=None, fly_advice=None):
+    safety_fields = {}
+    if safety is not None:
+        safety_fields = {
+            "safetySignal": safety.signal.value,
+            "safetyDirection": safety.direction,
+            "safetyClearance": (None if safety.clearance_m is None
+                                else round(safety.clearance_m, RANGE_DECIMALS)),
+        }
     return json.dumps({
         "type": "scan",
         "stamp": round(scan.stamp, 3),
@@ -92,6 +119,9 @@ def payload(scan, args, demo=False):
         "demo": demo,
         "angles": [round(a, ANGLE_DECIMALS) for a in scan.angles],
         "ranges": [round(r, RANGE_DECIMALS) for r in scan.ranges],
+        **safety_fields,
+        **({"omni": omni} if omni is not None else {}),
+        **({"flyAdvice": fly_advice} if fly_advice is not None else {}),
     }, separators=(",", ":"))
 
 
@@ -121,7 +151,7 @@ def demo_scan(turn):
     return lidar_module.Scan(time.time(), angles, ranges, [0] * points, [0] * points, 6.0, 6.0)
 
 
-def publish(socket, lidar, args):
+def publish(socket, lidar, args, indicator, fusion, fly_advisor):
     """Send one message per new revolution until the socket or the scanner dies."""
     interval = 1.0 / max(args.max_hz, 1.0)
     sent = 0
@@ -140,8 +170,12 @@ def publish(socket, lidar, args):
         # publish rate; resending a turn would only burn bandwidth.
         if scan is not None and serial != sent:
             sent = serial
+            safety = indicator.update_scan(scan)
+            omni = fusion.observe_scan(scan, safety.direction)
+            fly_advice = fly_advisor.observe_scan(scan, safety.direction)
             try:
-                socket.send(payload(scan, args, demo=args.demo))
+                socket.send(payload(scan, args, demo=args.demo, safety=safety, omni=omni,
+                                    fly_advice=fly_advice))
             except (websocket.WebSocketException, OSError) as error:
                 log("LiDAR link send failed: %s" % error)
                 return
@@ -181,6 +215,13 @@ def main():
     signal.signal(signal.SIGTERM, shutdown)
 
     lidar = None
+    indicator = DirectionalSafetyIndicator(
+        load_led_output(args.led_driver), args.safety_sector_deg
+    )
+    fusion = OmniFusion(args.omni_interval, enabled=not args.no_omni)
+    log("OMNI camera/LiDAR fusion %s" % ("enabled" if fusion.enabled else "disabled"))
+    fly_advisor = FlyPolicyAdvisor(args.fly_checkpoint, enabled=not args.no_fly_policy)
+    log("Fly connectome advisor %s" % ("enabled" if fly_advisor.enabled else "disabled"))
     if args.demo:
         log("DEMO MODE: publishing a synthetic room. Nothing here is measured.")
     else:
@@ -218,10 +259,11 @@ def main():
             log("LiDAR link up")
             # The server pings every 250 ms and terminates sockets that do not
             # pong, so something has to be reading while we send.
-            reader = threading.Thread(target=drain, args=(client,), daemon=True)
+            reader = threading.Thread(target=drain,
+                                      args=(client, indicator, fusion, fly_advisor), daemon=True)
             reader.start()
             try:
-                publish(client, lidar, args)
+                publish(client, lidar, args, indicator, fusion, fly_advisor)
             finally:
                 try:
                     client.close()
@@ -237,15 +279,30 @@ def main():
     finally:
         if lidar is not None:
             lidar.release()
+        indicator.close()
+        fusion.close()
+        fly_advisor.close()
     return 0
 
 
-def drain(socket):
-    """Read and discard server traffic so the library answers pings."""
+def drain(socket, indicator, fusion, fly_advisor):
+    """Read drive direction updates while also answering server pings."""
     while running and socket.sock is not None:
         try:
-            socket.recv()
-        except (websocket.WebSocketException, OSError):
+            raw = socket.recv()
+            if isinstance(raw, (bytes, bytearray)):
+                if len(raw) > 1:
+                    fusion.offer_camera(raw[0], raw[1:])
+                    fly_advisor.offer_camera(raw[0], raw[1:])
+                continue
+            message = json.loads(raw)
+            if message.get("type") == "drive" and message.get("forward") in (-1, 0, 1):
+                reading = indicator.set_motion(message["forward"])
+                clearance = ("unknown" if reading.clearance_m is None
+                             else "%.2f m" % reading.clearance_m)
+                log("Safety LED: %s (%s, %s)" %
+                    (reading.signal.value, reading.direction, clearance))
+        except (websocket.WebSocketException, OSError, ValueError, TypeError, json.JSONDecodeError):
             return
 
 

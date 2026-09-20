@@ -7,7 +7,7 @@ See `TELEOP_SETUP.md` for bringing the robot up from scratch.
 
 ## OMNI surroundings classification
 
-The `classification` module sends a camera image and optional LiDAR scan to
+The `classification` module sends one or more camera images and an optional LiDAR scan to
 Huawei OMNI, then returns a structured description of the robot's surroundings.
 
 ```powershell
@@ -21,9 +21,17 @@ The bundled `images.jpg` is used by default. To fuse a LiDAR scan:
 
 ```powershell
 python backend/classification/classify_surroundings.py `
-  --image backend/classification/images.jpg `
+  --image path/to/left.jpg --image path/to/right.jpg `
   --lidar backend/classification/lidar_example.json
 ```
+
+In the live robot path, `server.mjs` samples both camera panes onto the LiDAR
+socket. `lidar_stream.py` combines those views with compact front/left/right/back
+LiDAR minima and the commanded direction, then calls OMNI in a background worker
+at most once every five seconds while the robot is moving. Set
+`ROBOT_OMNI_INTERVAL` to change that cadence or pass `--no-omni` to disable it.
+The result appears in the next scan payload under `omni`. The direct LiDAR traffic
+light remains local and does not wait for cloud latency or depend on network access.
 
 The LiDAR JSON may be an array of distances (evenly distributed around 360
 degrees), or an object with a `ranges` array and optional sensor metadata such
@@ -211,6 +219,53 @@ Its own process for the same reason the camera has one.
 | `--max-range` | `12.0` | Outermost range ring the control page offers |
 | `--max-hz` | `10` | Upper bound on publish rate |
 | `--demo` | off | Synthesise a room instead of opening the port |
+| `--led-driver` | none | Optional LED adapter as `module:factory`; see below |
+| `--safety-sector-deg` | `90` | Width of the cone checked in the commanded travel direction |
+| `--omni-interval` | `5` | Minimum seconds between live multimodal OMNI calls |
+| `--no-omni` | off | Disable live OMNI fusion even when `YIBU_API_KEY` is set |
+| `--fly-checkpoint` | iteration 10 | Checkpoint used for fly-policy advice |
+| `--no-fly-policy` | off | Disable the experimental fly advisor |
+
+### Direction-aware safety LED
+
+The server mirrors each drive command to `lidar_stream.py`. For forward motion the
+nearest valid LiDAR return in the 90-degree front cone is used; for reverse motion
+the matching rear cone is used. The signal is **red at 20 cm or closer**, **yellow
+above 20 cm and below 50 cm**, and **green at 50 cm or farther**. A stopped robot is
+green, and motion before the first scan is red as a fail-safe. The current result is
+also included in scan JSON as `safetySignal`, `safetyDirection`, and
+`safetyClearance`, so it can be checked before hardware is attached.
+
+There is deliberately no GPIO dependency yet. `safety_signal.py` uses a no-hardware
+output by default. Once the LED and pins are chosen, add a small adapter with
+`set_signal(signal)` and optional `close()` methods, then start the stream with:
+
+```sh
+export ROBOT_LED_DRIVER=my_led_driver:create_output
+python3 backend/lidar_stream.py
+```
+
+The adapter receives a `SafetySignal` whose `.value` is `"red"`, `"yellow"`, or
+`"green"`; none of the LiDAR or direction logic needs to change. Set
+`ROBOT_LED_SECTOR_DEGREES` to tune the front/rear cone without editing code.
+
+### Fly connectome advisor
+
+The iteration-10 connectome policy is also part of the live perception stack. Its
+checkpoint metadata matches the robot's two camera positions, T-mini LiDAR frame,
+and 12-sector preprocessing. While an operator commands forward or reverse,
+`lidar_stream.py` gives that direction to the policy as a temporary goal bearing
+and feeds it both camera panes plus the current LiDAR turn. The newest suggestion is
+published as `flyAdvice` with `motion`, `turn`, `velocity`, and `headingDeg`.
+
+This is intentionally **advisory only**: it does not write the motors and cannot
+override the deterministic LED thresholds. Model loading and inference run in a
+daemon worker so they cannot stall LiDAR publication. The default checkpoint is
+`fly-gym/checkpoints/connectome_rnn_dagger_iter_10.pt`; override it with
+`ROBOT_FLY_CHECKPOINT` or disable it with `--no-fly-policy`. The Jetson environment
+needs the PyTorch/OpenCV dependencies from `fly-gym/requirements.txt` for inference;
+if they are absent or the checkpoint contract fails validation, the advisor reports
+an error and disables itself while LiDAR and the LED continue normally.
 
 A 667-point turn is about **8.9 KB**, so 6 Hz costs roughly 0.4 Mbps - under a tenth
 of what the two cameras cost. Scans go out as JSON text and the server relays them

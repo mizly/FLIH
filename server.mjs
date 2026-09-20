@@ -47,6 +47,10 @@ const VIEWER_BACKLOG_LIMIT = 1024 * 1024;
 // The cap leaves room for a faster scanner and still refuses a blob.
 const MAX_SCAN_BYTES = 64 * 1024;
 const SCAN_BACKLOG_LIMIT = 256 * 1024;
+// Give the LiDAR process fresh camera context for OMNI without copying the full
+// 15 fps stream onto its socket. Each pane is sampled independently.
+const PERCEPTION_FRAME_INTERVAL_MS = Number.parseInt(process.env.ROBOT_PERCEPTION_FRAME_INTERVAL_MS || "100", 10);
+const lastPerceptionFrameAt = new Map();
 
 function sameSecret(provided) {
   const expected = process.env.ROBOT_API_KEY || "";
@@ -86,7 +90,9 @@ function broadcastLidarStatus() {
 
 function stopRobot(reason) {
   sequence += 1;
-  send(robot, { type: "drive", forward: 0, turn: 0, sequence, sentAt: Date.now(), reason });
+  const command = { type: "drive", forward: 0, turn: 0, sequence, sentAt: Date.now(), reason };
+  send(robot, command);
+  send(lidar, command);
 }
 
 function releaseController(controller, reason) {
@@ -170,6 +176,13 @@ cameraServer.on("connection", (socket) => {
     // [1 byte camera index][JPEG]. The server relays the bytes without decoding
     // them; only the length and the framing are its business.
     if (!isBinary || raw.length < 2 || raw.length > MAX_FRAME_BYTES) return;
+    const pane = raw[0];
+    const now = Date.now();
+    if (lidar?.readyState === WebSocket.OPEN && lidar.bufferedAmount <= SCAN_BACKLOG_LIMIT &&
+        now - (lastPerceptionFrameAt.get(pane) || 0) >= PERCEPTION_FRAME_INTERVAL_MS) {
+      lidar.send(raw, { binary: true });
+      lastPerceptionFrameAt.set(pane, now);
+    }
     for (const viewer of viewers) {
       if (viewer.readyState !== WebSocket.OPEN) continue;
       if (viewer.bufferedAmount > VIEWER_BACKLOG_LIMIT) continue;
@@ -215,6 +228,9 @@ lidarServer.on("connection", (socket) => {
     broadcastLidarStatus();
   });
   socket.on("error", () => {});
+  // Until an active controller sends the next frame, stopped is the only safe
+  // direction assumption for a newly connected indicator.
+  send(socket, { type: "drive", forward: 0, turn: 0, sequence, sentAt: Date.now() });
   broadcastLidarStatus();
 });
 
@@ -246,7 +262,9 @@ robotServer.on("connection", (socket) => {
     } catch {}
   });
   socket.on("close", () => {
-    if (robot === socket) robot = null;
+    if (robot !== socket) return;
+    robot = null;
+    stopRobot("robot-disconnected");
     activeController = null;
     lastDriveAt = 0;
     broadcastStatus();
@@ -286,13 +304,15 @@ controlServer.on("connection", (socket) => {
     activeController = socket;
     lastDriveAt = Date.now();
     sequence += 1;
-    send(robot, {
+    const command = {
       type: "drive",
       forward: message.forward,
       turn: message.turn,
       sequence,
       sentAt: lastDriveAt,
-    });
+    };
+    send(robot, command);
+    send(lidar, command);
     broadcastStatus();
   });
 

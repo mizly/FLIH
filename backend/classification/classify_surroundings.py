@@ -14,7 +14,10 @@ from typing import Any
 
 import httpx
 
-from yibu_audit import append_audit_record
+try:
+    from .yibu_audit import append_audit_record
+except ImportError:  # Direct execution: python backend/classification/classify_surroundings.py
+    from yibu_audit import append_audit_record
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -22,14 +25,17 @@ DEFAULT_IMAGE = Path(__file__).with_name("images.jpg")
 DEFAULT_AUDIT_LOG = REPO_ROOT / ".data" / "yibu_api_calls.jsonl"
 
 SYSTEM_PROMPT = """You are the perception module for a small indoor mobile robot.
-Fuse the camera image with the LiDAR readings when present. Do not invent objects
+Fuse all labelled camera views with the LiDAR readings when present. Do not invent objects
 that are not supported by either sensor. Return ONLY one valid JSON object with:
 scene_type (string), summary (string), objects (array of strings),
 traversable_directions (array chosen from front/left/right/back),
 hazards (array of strings), nearest_obstacle_m (number or null),
-confidence (number from 0 to 1), and reasoning (one short string).
+confidence (number from 0 to 1), and reasoning (one short string). Account for the
+robot's intended direction when it is supplied. Camera views labelled left and
+right both face generally forward; they are not rear cameras.
 Treat LiDAR distances as stronger evidence for clearance and collision risk, and
-the image as stronger evidence for semantic labels."""
+the images as stronger evidence for semantic labels. Never override an explicit
+LiDAR distance with an estimate from an image."""
 
 
 def load_env(path: Path) -> None:
@@ -51,7 +57,11 @@ def load_env(path: Path) -> None:
 
 def data_url(path: Path) -> str:
     mime = mimetypes.guess_type(path.name)[0] or "image/jpeg"
-    return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode('ascii')}"
+    return bytes_data_url(path.read_bytes(), mime)
+
+
+def bytes_data_url(data: bytes, mime: str = "image/jpeg") -> str:
+    return f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def load_lidar(path: Path | None) -> Any | None:
@@ -83,28 +93,40 @@ def extract_json(text: str) -> dict[str, Any]:
     return value
 
 
-def classify(image: Path, lidar: Any | None, purpose: str) -> dict[str, Any]:
+def classify_views(
+    views: list[tuple[str, bytes, str]],
+    lidar: Any | None,
+    purpose: str,
+    direction: str | None = None,
+) -> dict[str, Any]:
+    if not views:
+        raise ValueError("at least one camera view is required")
     load_env(REPO_ROOT / ".env")
     api_key = os.getenv("YIBU_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("YIBU_API_KEY is missing; add it to the repository's .env file")
     base_url = os.getenv("YIBU_BASE_URL", "https://yibuapi.com/v1").rstrip("/")
     model = os.getenv("YIBU_MODEL", "qwen3.5-omni-plus")
+    audit_log = Path(os.getenv("YIBU_AUDIT_LOG", str(DEFAULT_AUDIT_LOG)))
     endpoint = f"{base_url}/chat/completions"
-    sensor_context = (
+    lidar_context = (
         "No LiDAR scan was provided; infer geometry only from the image."
         if lidar is None
         else "LiDAR scan JSON (distances are metres unless unit says otherwise):\n"
         + json.dumps(lidar, separators=(",", ":"))
     )
+    motion_context = "Intended motion: %s." % (direction or "unknown")
+    content = [{"type": "text", "text": motion_context + "\n" + lidar_context}]
+    for label, image_bytes, mime in views:
+        content.extend([
+            {"type": "text", "text": "Camera view: %s" % label},
+            {"type": "image_url", "image_url": {"url": bytes_data_url(image_bytes, mime)}},
+        ])
     payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": [
-                {"type": "text", "text": sensor_context},
-                {"type": "image_url", "image_url": {"url": data_url(image)}},
-            ]},
+            {"role": "user", "content": content},
         ],
         "temperature": 0.1,
         "max_tokens": 500,
@@ -130,14 +152,14 @@ def classify(image: Path, lidar: Any | None, purpose: str) -> dict[str, Any]:
             model=model, api_key=api_key, endpoint=endpoint, purpose=purpose,
             transport="http", ok=True, status_code=status_code,
             latency_s=time.monotonic() - started, response_json=response_json,
-            audit_log=DEFAULT_AUDIT_LOG,
+            audit_log=audit_log,
         )
     except Exception as exc:
         append_audit_record(
             model=model, api_key=api_key, endpoint=endpoint, purpose=purpose,
             transport="http", ok=False, status_code=status_code,
             latency_s=time.monotonic() - started, response_json=response_json,
-            error=f"{type(exc).__name__}: {exc}", audit_log=DEFAULT_AUDIT_LOG,
+            error=f"{type(exc).__name__}: {exc}", audit_log=audit_log,
         )
         raise
     choices = response_json.get("choices") or []
@@ -153,16 +175,30 @@ def classify(image: Path, lidar: Any | None, purpose: str) -> dict[str, Any]:
     return result
 
 
+def classify(image: Path, lidar: Any | None, purpose: str) -> dict[str, Any]:
+    """Backward-compatible single-image entry point."""
+    mime = mimetypes.guess_type(image.name)[0] or "image/jpeg"
+    return classify_views([("front", image.read_bytes(), mime)], lidar, purpose)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--image", type=Path, default=DEFAULT_IMAGE)
+    parser.add_argument("--image", type=Path, action="append",
+                        help="Camera image; repeat for multiple views")
     parser.add_argument("--lidar", type=Path, help="Optional LiDAR scan JSON")
     parser.add_argument("--purpose", default="surroundings_classification")
     args = parser.parse_args()
-    if not args.image.is_file():
-        parser.error(f"image does not exist: {args.image}")
+    images = args.image or [DEFAULT_IMAGE]
+    for image in images:
+        if not image.is_file():
+            parser.error(f"image does not exist: {image}")
     try:
-        result = classify(args.image, load_lidar(args.lidar), args.purpose)
+        views = []
+        for index, image in enumerate(images):
+            label = ("left", "right")[index] if index < 2 else "view-%d" % index
+            mime = mimetypes.guess_type(image.name)[0] or "image/jpeg"
+            views.append((label, image.read_bytes(), mime))
+        result = classify_views(views, load_lidar(args.lidar), args.purpose)
     except (OSError, ValueError, RuntimeError, httpx.HTTPError) as exc:
         print(f"classification failed: {exc}", file=sys.stderr)
         return 1

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from classify_surroundings import DEFAULT_IMAGE, data_url, extract_json, load_lidar
+from classify_surroundings import DEFAULT_IMAGE, bytes_data_url, data_url, extract_json, load_lidar
 from yibu_audit import append_audit_record
 
 
@@ -12,6 +12,7 @@ class ClassificationTests(unittest.TestCase):
         encoded = data_url(DEFAULT_IMAGE)
         self.assertTrue(encoded.startswith("data:image/jpeg;base64,"))
         self.assertGreater(len(encoded), 100)
+        self.assertEqual(bytes_data_url(b"abc"), "data:image/jpeg;base64,YWJj")
 
     def test_lidar_object_and_fenced_model_json(self):
         with tempfile.TemporaryDirectory() as directory:
