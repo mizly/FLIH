@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Bot, House, Radio, RotateCcw } from "lucide-react";
+import { CameraFeeds } from "./camera-feeds";
+import { LidarView } from "./lidar-view";
 import { Fly } from "./fly";
 
 type Connection = "connecting" | "connected" | "disconnected";
@@ -145,6 +147,10 @@ export function RobotControl() {
         <Link className="brand" href="/" aria-label="Back to FLIH home"><Fly small /><span>FLIH<span className="brand-dot">.</span></span></Link>
         <Link className="control-home" href="/"><House size={18} /> Route map</Link>
       </header>
+
+      <CameraFeeds />
+
+      <LidarView />
 
       <section className="control-card" aria-labelledby="control-title">
         <div className="control-icon"><Bot size={34} /></div>

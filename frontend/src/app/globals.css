@@ -211,6 +211,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .control-header { position: fixed; z-index: 10; top: 20px; left: 20px; right: 20px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
 .control-header .brand, .control-home { pointer-events: auto; }
 .control-home { min-height: 42px; padding: 8px 14px; display: flex; align-items: center; gap: 7px; border: 1px solid rgba(32,33,36,.14); border-radius: 99px; background: rgba(255,254,250,.94); box-shadow: 0 8px 30px rgba(31,33,36,.12); font-size: 15px; font-weight: 700; }
+.camera-panel { width: min(900px, 100%); margin: 0 auto 22px; }
+.camera-status { min-height: 38px; margin: 0 auto 12px; padding: 7px 13px; width: fit-content; display: flex; align-items: center; gap: 8px; color: #6f4930; border-radius: 12px; background: #fff2dc; font-size: 15px; }
+.camera-status.is-live { color: #237744; background: #eaf7ef; }
+.camera-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.camera-feed { position: relative; margin: 0; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 18px; background: #14161a; box-shadow: 0 12px 40px rgba(31,33,36,.18); }
+.camera-feed canvas { width: 100%; aspect-ratio: 16 / 9; display: block; object-fit: cover; }
+.camera-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #8d9098; font-size: 15px; font-weight: 700; letter-spacing: .5px; }
+.camera-feed figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 7px 12px; display: flex; align-items: center; justify-content: space-between; color: #f4f2ec; background: linear-gradient(transparent, rgba(12,13,16,.72)); font-size: 13px; font-weight: 700; }
+.camera-fps { color: #7fd6a0; }
+.camera-feed.is-live { border-color: #237744; }
+
+/* The LiDAR plot reuses .camera-status so the two sensor panels read as one
+   instrument cluster rather than two unrelated widgets. */
+.lidar-panel { width: min(900px, 100%); margin: 0 auto 22px; }
+.lidar-plot { position: relative; width: min(520px, 100%); margin: 0 auto; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 18px; background: #14161a; box-shadow: 0 12px 40px rgba(31,33,36,.18); }
+.lidar-plot canvas { width: 100%; aspect-ratio: 1 / 1; display: block; }
+.lidar-plot.is-live { border-color: #237744; }
+.lidar-plot.is-demo { border-color: #c98a1f; }
+.lidar-plot figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 7px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #f4f2ec; background: linear-gradient(transparent, rgba(12,13,16,.72)); font-size: 13px; font-weight: 700; }
+.lidar-zooms { display: flex; gap: 5px; }
+.lidar-zoom { padding: 3px 8px; color: #b9bcc2; border: 1px solid rgba(255,255,255,.22); border-radius: 8px; background: rgba(255,255,255,.06); font-size: 12px; font-weight: 700; cursor: pointer; }
+.lidar-zoom.is-active { color: #14161a; border-color: #7fd6a0; background: #7fd6a0; }
 .control-card { width: min(590px, 100%); margin: 0 auto; padding: 31px 36px 27px; text-align: center; border: 1px solid rgba(32,33,36,.15); border-radius: 28px; background: var(--paper); box-shadow: 0 22px 70px rgba(31,33,36,.16); }
 .control-icon { width: 68px; height: 68px; margin: 0 auto 12px; display: grid; place-items: center; color: var(--blue); border-radius: 21px; background: #eaf1fa; transform: rotate(-2deg); }
 .control-card h1 { margin: 4px 0 7px; font-size: clamp(35px, 6vw, 48px); line-height: 1; }
@@ -267,6 +289,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
   .control-shell { padding: 86px 12px 24px; }
   .control-header { top: 12px; left: 12px; right: 12px; }
   .control-card { padding: 25px 16px 23px; border-radius: 24px; }
+  .camera-grid { grid-template-columns: 1fr; }
+  .lidar-plot figcaption { flex-wrap: wrap; }
   .drive-key, .drive-stop { min-height: 76px; }
 }
 
