@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: flih
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: HOSTNAME
+        value: 0.0.0.0
+      - key: ROBOT_API_KEY
+        sync: false
+      - key: YIBU_API_KEY
+        sync: false
+      - key: YIBU_BASE_URL
+        value: https://yibuapi.com/v1
+      - key: YIBU_MODEL
+        value: qwen3.5-omni-plus

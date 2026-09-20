@@ -71,4 +71,14 @@ npm run typecheck
 npm test
 ```
 
+## Render deployment
+
+The repository includes `render.yaml` for the persistent Node web service. It
+serves the Next.js app and the `/ws/*` robot, camera, and LiDAR endpoints from
+one process. Render must have `ROBOT_API_KEY` set to the same secret used by the
+Jetson; `YIBU_API_KEY` is only needed for the optional OMNI advisor.
+
+After deployment, use the Render URL for the Jetson WebSocket settings with
+`wss://` (for example, `wss://your-service.onrender.com/ws/robot`).
+
 Browser tests expect the local server on port 3000 and Microsoft Edge installed. They cover the onboarding wizard, editable routes, mobile layout, map controls, captcha-free guide requests, and unauthorized API requests.

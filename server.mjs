@@ -5,7 +5,10 @@ import nextEnv from "@next/env";
 import { WebSocket, WebSocketServer } from "ws";
 
 const dev = process.argv.includes("--dev");
-const hostname = process.env.HOSTNAME || "127.0.0.1";
+// Render and other managed hosts proxy traffic to the process over the
+// container network, so the HTTP/WebSocket server must listen on all
+// interfaces. Keep localhost as an explicit override for local development.
+const hostname = process.env.HOSTNAME || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 const projectDir = process.cwd();
 
@@ -13,7 +16,15 @@ nextEnv.loadEnvConfig(projectDir, dev);
 
 const app = next({ dev, dir: "frontend", hostname, port });
 const handle = app.getRequestHandler();
-const server = createServer((request, response) => handle(request, response));
+const server = createServer((request, response) => {
+  if (request.url === "/health") {
+    response.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("ok");
+    return;
+  }
+
+  handle(request, response);
+});
 const controlServer = new WebSocketServer({ noServer: true });
 const robotServer = new WebSocketServer({ noServer: true });
 const cameraServer = new WebSocketServer({ noServer: true });
