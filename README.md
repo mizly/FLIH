@@ -55,6 +55,8 @@ Coordinates are indoor floor coordinates in metres from the displayed plan's top
 
 For manual driving, run `backend/robot_websocket.py` on the Jetson with the same key and connect it to `/ws/robot`. Browsers use the same-origin `/ws/control` channel, so the key remains server-side. Only one browser can drive at a time; releasing the controls, leaving the tab, disconnecting, or missing commands for 350 ms stops the robot. Motor speed, polarity, and serial-port setup are documented in `backend/README.md`.
 
+For the camera feeds, run `backend/camera_stream.py` alongside it with the same key, connected to `/ws/camera`; browsers watch the same-origin `/ws/video` channel. It publishes both CSI cameras as JPEG frames and the control page draws them above the drive controls. Keep it a separate process from the drive bridge - video is bulk traffic and driving is latency-critical. The CSI ports need a device-tree overlay enabled once per flash; see `backend/TELEOP_SETUP.md`.
+
 ## Storage and deployment
 
 Run as **one Node.js server process with a persistent writable `.data` directory**. File updates are serialized in that process and written with an atomic rename. Use a shared transactional database before deploying multiple instances, workers, or ephemeral/serverless storage. Reservations expire after 90 seconds without a browser check-in. The page checks in while it is open, so refreshing keeps your spot while closing or losing the page eventually releases it automatically.

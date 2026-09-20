@@ -38,3 +38,10 @@ __pycache__/
 .venv/
 venv/
 env/
+
+# Vendor ROS 2 workspaces ship with their colcon output. Yahboom's LiDAR workspace
+# carries 118 MB of it, built in April 2024 against another machine's paths - none of
+# it usable here, and none of it what FLIH runs. src/ is the part worth keeping.
+# (build/ is already covered above.)
+**/install/
+**/log/

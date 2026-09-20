@@ -17,6 +17,12 @@ How to get WASD driving working on the real robot, end to end. Read
 | `backend/robot_websocket.py` | Jetson | Holds the authenticated socket to `/ws/robot`, turns drive frames into motor commands |
 | `backend/motor_check.py` | Jetson | Bench tool: drives each motor on its own to verify wiring |
 | `hardware/PICO2/remote_control.py` | Pico 2 (MicroPython) | Translates `$cmd:args#` frames into I2C register writes on the board |
+| `backend/csi_camera.py` | Jetson | CSI capture behind `nvarguscamerasrc`, newest frame only |
+| `backend/camera_stream.py` | Jetson | Publishes both cameras to `/ws/camera` as JPEG over a WebSocket |
+| `hardware/Jetson NANO/test_camera_csi_dual.py` | Jetson | Bench tool: both camera feeds in a local window, no network |
+| `backend/lidar.py` | Jetson | T-mini Plus capture, straight off the serial port, newest turn only |
+| `backend/lidar_stream.py` | Jetson | Publishes one JSON scan per revolution to `/ws/lidar` |
+| `hardware/Jetson NANO/lidar/test_lidar.py` | Jetson | Bench tool: the scan as an ASCII plot in the terminal, no network |
 
 **The Jetson is the brain.** The Pico cannot hold the WebSocket, because it has no
 radio.
@@ -143,9 +149,14 @@ open it. `fuser -v <port>` names whatever is holding it.
 ```sh
 cd ~/FLIH
 export ROBOT_SERIAL_PORT=/dev/serial/by-id/usb-MicroPython_Board_in_FS_mode_<serial>-if00
-export ROBOT_MOTOR_SIGNS=-1,1,1,-1
 python3 backend/motor_check.py
 ```
+
+> **Do not export `ROBOT_MOTOR_SIGNS` or `ROBOT_MOTOR_SIDES`.** The confirmed values
+> are the defaults in `motor_board.py` and are pinned by
+> `backend/tests/test_drive_mixing.py`; `hardware/MOTOR_MAP.md` is the source of truth.
+> Pasting them from an old snippet is how forward and reverse got inverted twice.
+
 
 The configuration output should show `command+OK` for every write. Over I2C a write
 either gets an ACK or raises, so this is a real signal: `no reply` for all six means
@@ -158,6 +169,48 @@ last four drive through `drive()` itself and check `ROBOT_MOTOR_SIDES`.
 so a motor whose encoder is unplugged or miswired reports no movement, the board's PID
 integrates the error, and that wheel ramps to full PWM instead of the 250 mm/s asked
 for. Wheels up is what makes this safe to discover.
+
+### 3b. Enable the cameras
+
+**The CSI ports are dead until a device-tree overlay is applied**, and the symptom
+gives nothing away: `nvarguscamerasrc` reports `No cameras available`, there is no
+`/dev/video*` at all, and the camera I2C buses do not exist either, so probing them
+looks exactly like a cable problem.
+
+Check first - this is only needed once per flash:
+
+```sh
+grep -i overlay /boot/extlinux/extlinux.conf
+```
+
+Nothing there means nothing is enabled. FLIH runs two IMX219 modules on an Orin Nano
+dev kit, which is header 2, option 1:
+
+```sh
+sudo /opt/nvidia/jetson-io/config-by-hardware.py -l
+sudo /opt/nvidia/jetson-io/config-by-hardware.py -n 2="Camera IMX219 Dual"
+sudo reboot
+```
+
+It rewrites `extlinux.conf` and does **not** reboot on its own. Afterwards both
+sensors should be present:
+
+```sh
+ls /dev/video*                                   # video0 and video1
+cat /sys/class/video4linux/video*/name           # imx219 9-0010, imx219 10-0010
+```
+
+Check the ribbon cables while the power is off: contacts face **away** from the
+latch on the carrier board, blue backing toward it. A reversed cable produces the
+same `No cameras available`, which is an entire reboot cycle to discover.
+
+Then confirm the picture locally, before involving the network:
+
+```sh
+python3 "hardware/Jetson NANO/test_camera_csi_dual.py"
+```
+
+Both IMX219s offer 3280x2464@21 down to 1280x720@60; **60 fps exists only at 720p**.
 
 ### 4. Start the web stack
 
@@ -182,16 +235,71 @@ cd ~/FLIH
 export $(grep ROBOT_API_KEY .env)
 export ROBOT_WS_URL=ws://127.0.0.1:3000/ws/robot
 export ROBOT_SERIAL_PORT=/dev/serial/by-id/usb-MicroPython_Board_in_FS_mode_<serial>-if00
-export ROBOT_MOTOR_SIGNS=-1,1,1,-1
 python3 backend/robot_websocket.py
 ```
 
 Wait for `Connected to the FLIH control server`.
 
+Terminal 3, for the camera feeds. This is deliberately its own process: video is bulk
+traffic, driving is latency-critical, and a camera that wedges must not be able to
+take the motors with it.
+
+```sh
+cd ~/FLIH
+export $(grep ROBOT_API_KEY .env)
+export ROBOT_CAMERA_WS_URL=ws://127.0.0.1:3000/ws/camera
+python3 backend/camera_stream.py
+```
+
+Wait for `Camera link up`. It names which port went to which pane:
+
+```
+Publishing 2 camera(s) to ... (left pane <- sensor-id 1, right pane <- sensor-id 0)
+```
+
+That crossover is correct - CSI port 1 is the left-facing camera. Defaults are
+640x360 at 15 fps per camera, about 5.2 Mbps for the pair; `backend/README.md` lists
+the flags.
+
+Terminal 4, for the LiDAR. Its own process for the same reason, and optional: nothing
+about driving depends on it.
+
+```sh
+cd ~/FLIH
+export $(grep ROBOT_API_KEY .env)
+export ROBOT_LIDAR_WS_URL=ws://127.0.0.1:3000/ws/lidar
+python3 backend/lidar_stream.py
+```
+
+Wait for `LiDAR link up`. It names the port and the mounting angle it is assuming:
+
+```
+Scanner on /dev/ttyUSB0 at 230400 baud, zero mark 270 deg CCW of forward
+```
+
+That 270 is measured against FLIH's own mount, not taken from the vendor's yaml,
+which implies 180 and puts the map a quarter turn out. **If the scanner is ever
+re-seated, re-measure it**: run `hardware/Jetson NANO/lidar/test_lidar.py --bearings`
+with something narrow a metre in front of the robot and confirm it lands in the
+`+0.0 deg` row. A rotated scan draws a completely plausible room, so nothing catches
+it except looking. `--demo` publishes a synthetic one if you want to see the page
+working with no scanner wired.
+
 ### 5. Drive it
 
 Open `http://<jetson-ip>:3000/control`. The status line should read "Robot connected
 - controls are live." Keep the wheels up for the first drive.
+
+The camera panes sit above the controls and are independent of the drive link: they
+read "Live from the robot" once frames arrive, and a pane that goes 1.5 s without one
+blanks itself rather than leave a stale image an operator could mistake for live
+video. The LiDAR plot below them behaves the same way and for the same reason - a
+stale scan shows a clear path through obstacles that are still there.
+
+**Check W first, not A and D.** With the wheels still up, press W and confirm every
+wheel turns the way the robot is meant to travel. Forward is the only one of the four
+motions that can tell a correct drive map from an inverted one; the turns look right
+either way. See "Wheel numbering" below.
 
 Only one browser can drive at a time. Releasing the keys, leaving the tab,
 disconnecting, or 350 ms without a command all stop the robot.
@@ -220,26 +328,27 @@ meaningfully faster on a Jetson.
 
 ## Wheel numbering
 
-The module manual numbers the outputs M1 front left, M2 rear left, M3 front right,
-M4 rear right. **FLIH's harness does not match:**
+**`hardware/MOTOR_MAP.md` is the source of truth.** It holds the confirmed harness
+table, what each variable does, and how to re-derive both from scratch. The values
+there are the defaults in `motor_board.py`, so a correct bring-up sets neither
+variable.
 
-| Output | Wheel |
-| ------ | ----- |
-| M1 | rear right |
-| M2 | rear left |
-| M3 | front right |
-| M4 | front left |
+```sh
+ROBOT_MOTOR_SIGNS=1,-1,-1,1
+ROBOT_MOTOR_SIDES=L,R,L,R
+```
 
-So the right side is M1 and M3, the left side is M2 and M4, which is what
-`ROBOT_MOTOR_SIDES=R,L,R,L` encodes. A wrong side map is **invisible when driving
-straight** - every motor gets the same value - and shows up only as a broken turn.
-That is exactly how it was found.
+Two distinct ways to get this wrong, and only one of them is findable by turning:
 
-`ROBOT_MOTOR_SIGNS=-1,1,1,-1` flips M1 and M4, which are mounted mirrored.
+| Wrong | What you see |
+| ----- | ------------ |
+| Sides only | Driving straight is perfect, turns are broken |
+| Signs **and** sides together | Forward and reverse inverted, **turns exactly correct** |
 
-> **Unverified:** the side map was corrected after observing the bad turn, but the
-> fix has not yet been driven. Step 3's last four steps are the check - confirm A
-> rotates the cart left and D rotates it right before trusting it.
+The second is the one that keeps coming back. Rotation about the centre is identical
+whichever end you call the front, so A and D look right no matter which way round the
+map is - the only check that catches it is whether **W drives the way the robot
+faces**. Confirm that before trusting a bring-up, and do it with the wheels up.
 
 ## Known gaps
 
@@ -252,5 +361,14 @@ That is exactly how it was found.
 - **The bridge does not survive its serial port disappearing.** A re-enumerated or
   unplugged Pico kills it with `[Errno 5]` and it does not retry. The `by-id` path
   removes the common cause; a supervisor would remove the rest.
+- **Video is MJPEG, not WebRTC.** Every frame is a whole JPEG, so bandwidth scales
+  with resolution far faster than an inter-frame codec would and there is no
+  congestion control beyond dropping frames. It is simple, it reuses the existing
+  auth, and it is fine on a LAN; it is not what you would send over the open
+  internet.
+- **The camera stream is unauthenticated on the browser side.** `/ws/video` checks
+  the origin, exactly like `/ws/control`, which means anyone who can reach the page
+  can watch. That matches the drive channel's model, but driving has a one-controller
+  lock and watching does not.
 - **Robot telemetry is not wired up.** `PATCH /api/flih` wants floor coordinates,
   which needs localization, so the map still shows the simulated demo position.

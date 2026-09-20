@@ -11,6 +11,12 @@ ROBOT_MOTOR_SIDES=L,R,L,R
 Both were confirmed on the hardware: all four wheels forward on W, backward on S,
 the cart rotating left on A and right on D.
 
+**These are the defaults in `backend/motor_board.py`, so a correct bring-up exports
+neither of them**, and `backend/tests/test_drive_mixing.py` fails if either default
+drifts from this file. They used to live only here while the setup guides carried
+older values in their copy-paste blocks, which is how the inversion below reached the
+robot twice - the second time from a doc snippet that had never been updated.
+
 ## The harness
 
 | Board output | Wheel, as labelled on the chassis | Drives side |
@@ -54,3 +60,11 @@ should look like. Any wheel that turns backward on its own step gets its slot in
 `ROBOT_MOTOR_SIGNS` flipped. If every wheel is right but A and D rotate the wrong
 way, the side map is wrong, not the signs. If forward and reverse are inverted while
 the turns are correct, flip the signs and the sides together.
+
+Then change the defaults in `backend/motor_board.py` and the values at the top of
+this file, and run the tests - do not leave the fix in a shell export or a setup
+snippet, because that is precisely the shape this bug keeps coming back in:
+
+```sh
+python -m unittest discover -s backend/tests -p 'test_*.py' -v
+```
