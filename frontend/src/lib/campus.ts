@@ -146,6 +146,49 @@ export const routeEdges = [
   ["e5Room6012", "e5SouthLoopEast"],
 ] as const satisfies readonly (readonly [RouteNodeId, RouteNodeId])[];
 
+function roomWaypoint(id: string, x: number, y: number) {
+  const marker = floorPoint(x, y);
+  return { id: `room-${id}`, name: `Room ${id}`, short: id, node: nearestRouteNode(marker), marker };
+}
+
+const additionalRoomWaypoints = [
+  roomWaypoint("6434", 107.5, 87), roomWaypoint("6432", 107.5, 164), roomWaypoint("6428", 107.5, 236),
+  roomWaypoint("6426", 107.5, 308), roomWaypoint("6424", 107.5, 380), roomWaypoint("6422", 107.5, 455),
+  roomWaypoint("6418", 107.5, 525.5), roomWaypoint("6416", 107.5, 594), roomWaypoint("6414", 107.5, 666.5),
+  roomWaypoint("6412", 107.5, 738), roomWaypoint("6408", 107.5, 810), roomWaypoint("6406", 107.5, 880),
+  roomWaypoint("6404", 107.5, 950.5), roomWaypoint("6402", 107.5, 1022.5),
+  roomWaypoint("6436", 238.5, 101.5), roomWaypoint("6438", 303, 101.5), roomWaypoint("6442", 367.5, 101.5),
+  roomWaypoint("6444", 432, 101.5), roomWaypoint("6446", 496, 101.5), roomWaypoint("6448", 628.5, 95),
+  roomWaypoint("6427", 287, 255), roomWaypoint("6443", 448, 255), roomWaypoint("6423", 287, 352),
+  roomWaypoint("6447", 448, 352), roomWaypoint("6421", 287, 447), roomWaypoint("6453", 448, 447),
+  roomWaypoint("6417", 287, 620), roomWaypoint("6457", 448, 620), roomWaypoint("6411", 287, 744.5),
+  roomWaypoint("6459", 448, 744.5), roomWaypoint("6452", 628.5, 189), roomWaypoint("6454", 628.5, 261),
+  roomWaypoint("6456", 628.5, 594), roomWaypoint("6458", 628.5, 666.5), roomWaypoint("6462", 628.5, 738),
+  roomWaypoint("6464", 628.5, 810), roomWaypoint("6466", 628.5, 882), roomWaypoint("6468", 628.5, 952.5),
+  roomWaypoint("6472", 628.5, 1025.5),
+  roomWaypoint("6109", 999, 412), roomWaypoint("6111", 1155, 412), roomWaypoint("6112", 1309.5, 412),
+  roomWaypoint("6118", 1411.5, 377), roomWaypoint("6119", 1510.5, 407), roomWaypoint("6117", 1380.5, 576),
+  roomWaypoint("6123", 1380.5, 642.5), roomWaypoint("6113", 1140.5, 602.5), roomWaypoint("6114", 1219.5, 623.5),
+  roomWaypoint("6116", 1302, 623.5), roomWaypoint("6108", 1140.5, 693.5), roomWaypoint("6106", 1140.5, 806.5),
+  roomWaypoint("6127", 1298, 782), roomWaypoint("6107", 999, 800.5), roomWaypoint("6104", 999, 882.5),
+  roomWaypoint("6103", 999, 954), roomWaypoint("6102", 999, 1027), roomWaypoint("6121", 1510.5, 522.5),
+  roomWaypoint("6122", 1510.5, 596), roomWaypoint("6124", 1510.5, 684.5), roomWaypoint("6126", 1510.5, 792),
+  roomWaypoint("6128", 1510.5, 882), roomWaypoint("6129", 1510.5, 952.5), roomWaypoint("6131", 1510.5, 1025.5),
+  roomWaypoint("6302", 107.5, 1338.5), roomWaypoint("6304", 107.5, 1413), roomWaypoint("6306", 107.5, 1485.5),
+  roomWaypoint("6308", 107.5, 1557), roomWaypoint("6312", 107.5, 1625.5), roomWaypoint("6314", 107.5, 1693.5),
+  roomWaypoint("6316", 107.5, 1765), roomWaypoint("6318", 107.5, 1839), roomWaypoint("6322", 107.5, 1912),
+  roomWaypoint("6303", 381, 1390.5), roomWaypoint("6309", 287, 1547), roomWaypoint("6353", 448, 1547),
+  roomWaypoint("6311", 287, 1657.5), roomWaypoint("6349", 448, 1657.5), roomWaypoint("6313", 287, 1750),
+  roomWaypoint("6347", 448, 1750), roomWaypoint("6317", 287, 1848), roomWaypoint("6343", 448, 1848),
+  roomWaypoint("6321", 287, 1946), roomWaypoint("6339", 448, 1946), roomWaypoint("6362", 628.5, 1338.5),
+  roomWaypoint("6358", 628.5, 1413), roomWaypoint("6356", 628.5, 1485.5), roomWaypoint("6354", 628.5, 1557),
+  roomWaypoint("6352", 628.5, 1625.5), roomWaypoint("6348", 628.5, 1693.5), roomWaypoint("6346", 628.5, 1763),
+  roomWaypoint("6344", 628.5, 1833), roomWaypoint("6342", 628.5, 1937), roomWaypoint("6326", 236.5, 2209),
+  roomWaypoint("6328", 303, 2207), roomWaypoint("6332", 365.5, 2202.5), roomWaypoint("6334", 428, 2202.5),
+  roomWaypoint("6336", 494, 2202.5), roomWaypoint("6323", 287, 2046), roomWaypoint("6333", 448, 2048),
+  roomWaypoint("6324", 128, 2229.5), roomWaypoint("6338", 605.5, 2223),
+] as const;
+
 export const places = [
   {
     id: "slc",
@@ -177,23 +220,32 @@ export const places = [
     short: "E5 south",
     node: "e5South",
   },
-  { id: "e7", name: "Room 6004", short: "6004", node: "e5Room6004" },
-  { id: "r6002", name: "Room 6002", short: "6002", node: "e5Room6002" },
-  { id: "r6003", name: "Room 6003", short: "6003", node: "e5Room6003" },
-  { id: "r6005", name: "Room 6005", short: "6005", node: "e5Room6005" },
-  { id: "r6006", name: "Room 6006", short: "6006", node: "e5Room6006" },
-  { id: "r6007", name: "Room 6007", short: "6007", node: "e5Room6007" },
-  { id: "r6008", name: "Room 6008", short: "6008", node: "e5Room6008" },
-  { id: "r6009", name: "Room 6009", short: "6009", node: "e5Room6009" },
-  { id: "r6011", name: "Room 6011", short: "6011", node: "e5Room6011" },
-  { id: "r6012", name: "Room 6012", short: "6012", node: "e5Room6012" },
-  { id: "r6013", name: "Room 6013", short: "6013", node: "e5Room6013" },
-  { id: "r6014", name: "Room 6014", short: "6014", node: "e5Room6014" },
+  { id: "e7Upper", name: "E7 upper corridor", short: "E7 upper", node: "e7UpperWest" },
+  { id: "e7Mid", name: "E7 middle corridor", short: "E7 middle", node: "e7MidWest" },
+  { id: "upperBridge", name: "Upper E7/E5 bridge", short: "Upper bridge", node: "upperLinkCenter" },
+  { id: "lowerBridge", name: "Lower E7/E5 bridge", short: "Lower bridge", node: "lowerLinkCenter" },
+  { id: "e5Atrium", name: "E5 atrium", short: "E5 atrium", node: "e5AtriumWest" },
+  { id: "e5Junction", name: "E5 lower junction", short: "E5 junction", node: "e5LowerJunction" },
+  { id: "southLoop", name: "E5 south loop", short: "South loop", node: "e5SouthLoopWestTop" },
+  { id: "e7", name: "Room 6004", short: "6004", node: "e5Room6004", marker: floorPoint(1436, 1584) },
+  { id: "r6002", name: "Room 6002", short: "6002", node: "e5Room6002", marker: floorPoint(1155, 1432) },
+  { id: "r6003", name: "Room 6003", short: "6003", node: "e5Room6003", marker: floorPoint(1446, 1443) },
+  { id: "r6005", name: "Room 6005", short: "6005", node: "e5Room6005", marker: floorPoint(1099, 1628) },
+  { id: "r6006", name: "Room 6006", short: "6006", node: "e5Room6006", marker: floorPoint(1446, 1834) },
+  { id: "r6007", name: "Room 6007", short: "6007", node: "e5Room6007", marker: floorPoint(1099, 1841) },
+  { id: "r6008", name: "Room 6008", short: "6008", node: "e5Room6008", marker: floorPoint(1446, 2093) },
+  { id: "r6009", name: "Room 6009", short: "6009", node: "e5Room6009", marker: floorPoint(1215, 2112) },
+  { id: "r6011", name: "Room 6011", short: "6011", node: "e5Room6011", marker: floorPoint(1436, 2338) },
+  { id: "r6012", name: "Room 6012", short: "6012", node: "e5Room6012", marker: floorPoint(1177, 2325) },
+  { id: "r6013", name: "Room 6013", short: "6013", node: "e5Room6013", marker: floorPoint(1020, 2325) },
+  { id: "r6014", name: "Room 6014", short: "6014", node: "e5Room6014", marker: floorPoint(1136, 2112) },
+  ...additionalRoomWaypoints,
 ] as const satisfies readonly {
   id: string;
   name: string;
   short: string;
   node: RouteNodeId;
+  marker?: Point;
 }[];
 
 export type PlaceId = (typeof places)[number]["id"];

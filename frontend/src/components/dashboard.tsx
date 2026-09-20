@@ -10,6 +10,38 @@ import { Button } from "./ui/button";
 import Link from "next/link";
 import { Gamepad2 } from "lucide-react";
 
+function PlaceSearch({ label, value, onChange, disabled = false }: { label: string; value: PlaceId | null; onChange: (id: PlaceId) => void; disabled?: boolean }) {
+  const selected = places.find((place) => place.id === value);
+  const [query, setQuery] = useState(selected?.name ?? "");
+
+  useEffect(() => {
+    setQuery(selected?.name ?? "");
+  }, [selected?.name]);
+
+  function search(nextQuery: string) {
+    setQuery(nextQuery);
+    const normalized = nextQuery.trim().toLowerCase();
+    const match = places.find((place) => place.name.toLowerCase() === normalized || place.short.toLowerCase() === normalized);
+    if (match) onChange(match.id);
+  }
+
+  return (
+    <label><span>{label}</span>
+      <input
+        aria-label={label}
+        list={`${label.replaceAll(" ", "-").toLowerCase()}-places`}
+        value={query}
+        onChange={(event) => search(event.target.value)}
+        placeholder={`Search ${label.toLowerCase()}`}
+        disabled={disabled}
+      />
+      <datalist id={`${label.replaceAll(" ", "-").toLowerCase()}-places`}>
+        {places.map((place) => <option key={place.id} value={place.name}>{place.short}</option>)}
+      </datalist>
+    </label>
+  );
+}
+
 export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [connectionError, setConnectionError] = useState(false);
@@ -185,18 +217,8 @@ export function Dashboard() {
           </div>
           <div className="route-editor">
             <div className="route-line" aria-hidden="true"><span /><i /><span /></div>
-            <label><span>Starting from</span>
-              <select aria-label="Starting from" value={shownPickup ?? ""} onChange={(event) => changePickup(event.target.value as PlaceId)}>
-                <option value="" disabled>Select start</option>
-                {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
-              </select>
-            </label>
-            <label><span>Going to</span>
-              <select aria-label="Going to" value={shownEnd ?? ""} onChange={(event) => changeEnd(event.target.value as PlaceId)}>
-                <option value="" disabled>Select end</option>
-                {places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
-              </select>
-            </label>
+            <PlaceSearch label="Starting from" value={shownPickup} onChange={changePickup} disabled={Boolean(mine)} />
+            <PlaceSearch label="Going to" value={shownEnd} onChange={changeEnd} disabled={Boolean(mine)} />
           </div>
           {shownPickup && shownEnd && shownPickup === shownEnd && <p className="error-message" role="alert">Choose two different locations.</p>}
           <div className="trip-summary"><span><Footprints size={16} /> {shownPickup && shownEnd ? "Follow the highlighted route" : "Choose start and end"}</span><span><BatteryMedium size={16} /> {data ? `${Math.round(data.robot.battery)}%` : "—"}</span></div>

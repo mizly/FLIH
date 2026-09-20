@@ -1,8 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
 async function chooseRoute(page: Page) {
-  await page.getByLabel("Starting from").selectOption("dc");
-  await page.getByLabel("Going to").selectOption("e7");
+  await page.getByLabel("Starting from").fill("E7 north corridor");
+  await page.getByLabel("Going to").fill("Room 6004");
 }
 
 test("guides a user from onboarding to an editable route", async ({ page }) => {
@@ -15,18 +15,18 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
   await expect(page.getByLabel("Going to")).toHaveValue("");
   await chooseRoute(page);
   await expect(page.getByRole("heading", { name: "Ready to go" })).toBeVisible();
-  await expect(page.getByLabel("Starting from")).toHaveValue("dc");
-  await expect(page.getByLabel("Going to")).toHaveValue("e7");
+  await expect(page.getByLabel("Starting from")).toHaveValue("E7 north corridor");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6004");
   const initialDragCoordinates = await page.locator(".map-transform").evaluate((element) => {
     const matrix = (element as SVGGElement).getScreenCTM()!;
     const screenPoint = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(matrix);
-    return { from: screenPoint(1485, 1725), to: screenPoint(1485, 1955) };
+    return { from: screenPoint(1616, 1704), to: screenPoint(1279, 1961) };
   });
   await page.mouse.move(initialDragCoordinates.from.x, initialDragCoordinates.from.y);
   await page.mouse.down();
   await page.mouse.move(initialDragCoordinates.to.x, initialDragCoordinates.to.y, { steps: 8 });
   await page.mouse.up();
-  await expect(page.getByLabel("Going to")).toHaveValue("r6007");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6007");
   await expect(page.getByText(/m · scroll to zoom/)).toBeVisible();
   await expect(page.locator(".end-route")).toHaveAttribute("marker-mid", "url(#route-arrow)");
   await page.getByRole("button", { name: "Zoom out" }).click();
@@ -35,7 +35,7 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
   const dragCoordinates = await page.locator(".map-transform").evaluate((element) => {
     const matrix = (element as SVGGElement).getScreenCTM()!;
     const screenPoint = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(matrix);
-    return { from: screenPoint(1485, 1955), to: screenPoint(1485, 2215) };
+    return { from: screenPoint(1279, 1961), to: screenPoint(1626, 2213) };
   });
   await page.mouse.move(dragCoordinates.from.x, dragCoordinates.from.y);
   await page.mouse.down();
@@ -43,9 +43,9 @@ test("guides a user from onboarding to an editable route", async ({ page }) => {
   await expect(page.locator(".endpoint-drag-hint")).toContainText("Drop END");
   await page.mouse.move(dragCoordinates.to.x, dragCoordinates.to.y, { steps: 8 });
   await expect(page.locator(".map-stop.is-nearest")).toHaveCount(1);
-  await expect(page.getByLabel("Going to")).toHaveValue("r6007");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6007");
   await page.mouse.up();
-  await expect(page.getByLabel("Going to")).toHaveValue("r6008");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6008");
   await expect(page.locator(".endpoint-marker.is-dragging")).toHaveCount(0);
   const map = page.locator(".campus-svg");
   const transformBeforeWheel = await page.locator(".map-transform").getAttribute("transform");
@@ -83,7 +83,7 @@ test("a waypoint click opens route actions", async ({ page }) => {
   await expect(details).toBeVisible();
   await expect.poll(async () => (await details.boundingBox())?.x).not.toBe(positionBeforeZoom?.x);
   await details.getByRole("button", { name: "Set as start" }).click();
-  await expect(page.getByLabel("Starting from")).toHaveValue("e7");
+  await expect(page.getByLabel("Starting from")).toHaveValue("Room 6004");
   await page.locator(".campus-svg").click({ position: { x: 10, y: 10 } });
   await expect(details).toHaveCount(0);
 });
@@ -128,13 +128,13 @@ test("an active guide request keeps route edits after dropping a marker", async 
   const dragCoordinates = await page.locator(".map-transform").evaluate((element) => {
     const matrix = (element as SVGGElement).getScreenCTM()!;
     const screenPoint = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(matrix);
-    return { from: screenPoint(1485, 1725), to: screenPoint(1485, 1955) };
+    return { from: screenPoint(1616, 1704), to: screenPoint(1279, 1961) };
   });
   await page.mouse.move(dragCoordinates.from.x, dragCoordinates.from.y);
   await page.mouse.down();
   await page.mouse.move(dragCoordinates.to.x, dragCoordinates.to.y, { steps: 8 });
   await page.mouse.up();
-  await expect(page.getByLabel("Going to")).toHaveValue("r6007");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6007");
   await page.waitForTimeout(5_100);
-  await expect(page.getByLabel("Going to")).toHaveValue("r6007");
+  await expect(page.getByLabel("Going to")).toHaveValue("Room 6007");
 });
