@@ -9,7 +9,7 @@ import {
   routeEdges,
   routeLengthMeters,
   routeNodes,
-  routePoints,
+  routePointsForPlaces,
   worldToSource,
   type Robot,
   type PlaceId,
@@ -33,6 +33,10 @@ function pathData(points: Point[]) {
   return points.map((point, index) => `${index ? "L" : "M"}${point.x} ${point.y}`).join(" ");
 }
 
+function placePoint(place: (typeof places)[number]) {
+  return "marker" in place && place.marker ? place.marker : routeNodes[place.node];
+}
+
 export function CampusMap({ robot, pickup, end, onPickup, onEnd }: { robot: Robot | null; pickup: PlaceId | null; end: PlaceId | null; onPickup: (id: PlaceId) => void; onEnd: (id: PlaceId) => void }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -52,8 +56,8 @@ export function CampusMap({ robot, pickup, end, onPickup, onEnd }: { robot: Robo
   const selected = places.find((place) => place.id === selectedPlace);
   const robotPoint = worldToSource(robot ?? { x: 32.7, y: 58.6 });
   const robotNode = nearestRouteNode(robotPoint);
-  const pickupRoute = useMemo(() => point ? routePoints(robotNode, point.node) : [], [robotNode, point]);
-  const endRoute = useMemo(() => point && target ? routePoints(point.node, target.node) : [], [point, target]);
+  const pickupRoute = useMemo(() => point ? routePointsForPlaces({ node: robotNode }, point) : [], [robotNode, point]);
+  const endRoute = useMemo(() => point && target ? routePointsForPlaces(point, target) : [], [point, target]);
   const tripDistance = endRoute.length ? routeLengthMeters(endRoute) : null;
   const viewCenter = useMemo(() => ({
     x: floorPlan.sourceOrigin.x + floorPlan.sourceSize.width / 2,
@@ -169,7 +173,9 @@ export function CampusMap({ robot, pickup, end, onPickup, onEnd }: { robot: Robo
       pressedPlace.current = null;
       return;
     }
-    if (!gesture.current.moved) setSelectedPlace(pressedPlace.current);
+    if (!gesture.current.moved) {
+      setSelectedPlace(pressedPlace.current ?? nearestPlaceWithin(event.clientX, event.clientY)?.id ?? null);
+    }
     pressedPlace.current = null;
     pointers.current.delete(event.pointerId);
     gesture.current.distance = undefined;
@@ -186,10 +192,25 @@ export function CampusMap({ robot, pickup, end, onPickup, onEnd }: { robot: Robo
     const mapPoint = mapPointAt(clientX, clientY);
     const otherEndpoint = endpoint === "start" ? end : pickup;
     return places.filter((place) => place.id !== otherEndpoint).reduce((best, candidate) => {
-      const candidatePoint = routeNodes[candidate.node];
-      const bestPoint = routeNodes[best.node];
+      const candidatePoint = placePoint(candidate);
+      const bestPoint = placePoint(best);
       return Math.hypot(mapPoint.x - candidatePoint.x, mapPoint.y - candidatePoint.y) < Math.hypot(mapPoint.x - bestPoint.x, mapPoint.y - bestPoint.y) ? candidate : best;
     });
+  }
+
+  function nearestPlaceWithin(clientX: number, clientY: number) {
+    const mapPoint = mapPointAt(clientX, clientY);
+    let nearest: (typeof places)[number] | null = null;
+    let nearestDistance = Infinity;
+    for (const place of places) {
+      const location = placePoint(place);
+      const distance = Math.hypot(mapPoint.x - location.x, mapPoint.y - location.y);
+      if (distance < nearestDistance) {
+        nearest = place;
+        nearestDistance = distance;
+      }
+    }
+    return nearestDistance <= Math.max(42, 110 / zoom) ? nearest : null;
   }
 
   function updateEndpointDrag(clientX: number, clientY: number) {
@@ -273,7 +294,7 @@ export function CampusMap({ robot, pickup, end, onPickup, onEnd }: { robot: Robo
             <g className="route-network" aria-hidden="true">
               {routeEdges.map(([from, to]) => <line key={`${from}-${to}`} x1={routeNodes[from].x} y1={routeNodes[from].y} x2={routeNodes[to].x} y2={routeNodes[to].y} />)}
             </g>
-            {point && <path d={pathData([robotPoint, routeNodes[robotNode], ...pickupRoute.slice(1)])} className="active-route pickup-route" markerEnd="url(#route-arrow)" />}
+            {point && <path d={pathData([robotPoint, ...pickupRoute])} className="active-route pickup-route" markerEnd="url(#route-arrow)" />}
             {point && target && <path d={pathData(endRoute)} className="active-route end-route" markerMid="url(#route-arrow)" markerEnd="url(#route-arrow)" />}
             <g
               className="room-model-anchor"
@@ -290,7 +311,7 @@ export function CampusMap({ robot, pickup, end, onPickup, onEnd }: { robot: Robo
               <text className="room-model-anchor-label" y="1">3D</text>
             </g>
             {places.map((place) => {
-              const location = routeNodes[place.node];
+              const location = placePoint(place);
               const unavailable = draggingEndpoint === "start" ? place.id === end : draggingEndpoint === "end" ? place.id === pickup : false;
               return (
                 <g key={place.id} role="button" tabIndex={0} aria-label={`View details for ${place.name}`} onPointerDown={() => { pressedPlace.current = place.id; }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedPlace(place.id); } }} className={`map-stop${place.id === pickup || place.id === end ? " important" : ""}${place.id === dropTarget ? " is-nearest" : ""}${unavailable ? " is-unavailable" : ""}`}>
@@ -312,7 +333,7 @@ export function CampusMap({ robot, pickup, end, onPickup, onEnd }: { robot: Robo
               target ? { kind: "end" as const, place: target, color: "#ed4d4d", label: "END" } : null,
             ].filter((endpoint): endpoint is NonNullable<typeof endpoint> => endpoint !== null)).map((endpoint) => {
               const isDragging = draggingEndpoint === endpoint.kind;
-              const location = isDragging && dragPosition ? dragPosition : routeNodes[endpoint.place.node];
+              const location = isDragging && dragPosition ? dragPosition : placePoint(endpoint.place);
               const inverseZoom = ENDPOINT_MARKER_SCALE / zoom;
               return (
                 <g
@@ -341,7 +362,7 @@ export function CampusMap({ robot, pickup, end, onPickup, onEnd }: { robot: Robo
               <foreignObject x="-43" y="-43" width="86" height="76"><Fly small /></foreignObject>
             </g>
             {selected && !draggingEndpoint && (() => {
-              const location = routeNodes[selected.node];
+              const location = placePoint(selected);
               return (
                 <foreignObject
                   className="map-place-popover"

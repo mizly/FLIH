@@ -119,6 +119,9 @@ export function RobotControl() {
     if (!enabled) releaseAll();
   }, [enabled, releaseAll]);
 
+  // Load-bearing repeat: the server drops the controller after 350 ms without a
+  // command and the Pico relay stops the motors after 500 ms, so holding a key has
+  // to keep sending. See backend/TELEOP_SETUP.md before changing this interval.
   useEffect(() => {
     if (pressed.size === 0) return;
     const timer = setInterval(sendDrive, 100);
