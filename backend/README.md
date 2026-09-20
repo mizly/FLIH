@@ -220,21 +220,20 @@ Its own process for the same reason the camera has one.
 | `--max-hz` | `10` | Upper bound on publish rate |
 | `--demo` | off | Synthesise a room instead of opening the port |
 | `--led-driver` | none | Optional LED adapter as `module:factory`; see below |
-| `--safety-sector-deg` | `90` | Width of the cone checked in the commanded travel direction |
 | `--omni-interval` | `5` | Minimum seconds between live multimodal OMNI calls |
 | `--no-omni` | off | Disable live OMNI fusion even when `YIBU_API_KEY` is set |
 | `--fly-checkpoint` | iteration 10 | Checkpoint used for fly-policy advice |
 | `--no-fly-policy` | off | Disable the experimental fly advisor |
 
-### Direction-aware safety LED
+### Omnidirectional safety LED
 
-The server mirrors each drive command to `lidar_stream.py`. For forward motion the
-nearest valid LiDAR return in the 90-degree front cone is used; for reverse motion
-the matching rear cone is used. The signal is **red at 20 cm or closer**, **yellow
-above 20 cm and below 50 cm**, and **green at 50 cm or farther**. A stopped robot is
-green, and motion before the first scan is red as a fail-safe. The current result is
-also included in scan JSON as `safetySignal`, `safetyDirection`, and
-`safetyClearance`, so it can be checked before hardware is attached.
+The nearest valid LiDAR return in the full 360-degree scan drives the signal,
+regardless of the commanded direction or whether the robot is stopped. The signal
+is **red at 20 cm or closer**, **yellow above 20 cm and below 50 cm**, and **green
+at 50 cm or farther**. Motion before the first scan is red as a fail-safe. The
+current result is also included in scan JSON as `safetySignal`, `safetyDirection`,
+and `safetyClearance`, so it can be checked before hardware is attached and the
+control page can show the nearest-object distance.
 
 There is deliberately no GPIO dependency yet. `safety_signal.py` uses a no-hardware
 output by default. Once the LED and pins are chosen, add a small adapter with
@@ -246,8 +245,7 @@ python3 backend/lidar_stream.py
 ```
 
 The adapter receives a `SafetySignal` whose `.value` is `"red"`, `"yellow"`, or
-`"green"`; none of the LiDAR or direction logic needs to change. Set
-`ROBOT_LED_SECTOR_DEGREES` to tune the front/rear cone without editing code.
+`"green"`; none of the LiDAR logic needs to change.
 
 ### Fly connectome advisor
 

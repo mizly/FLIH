@@ -6,9 +6,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from safety_signal import (  # noqa: E402
-    DirectionalSafetyIndicator,
+    SafetyIndicator,
     SafetySignal,
-    directional_clearance,
+    nearest_clearance,
     signal_for_clearance,
 )
 
@@ -44,43 +44,34 @@ class ThresholdTests(unittest.TestCase):
         self.assertEqual(signal_for_clearance(2.0), SafetySignal.GREEN)
 
 
-class DirectionTests(unittest.TestCase):
-    def test_forward_ignores_a_close_obstacle_behind(self):
-        clearance = directional_clearance([0.0, math.pi], [0.7, 0.1], forward=1)
-        self.assertEqual(clearance, 0.7)
-
-    def test_reverse_ignores_a_close_obstacle_in_front(self):
-        clearance = directional_clearance([0.0, -math.pi], [0.1, 0.35], forward=-1)
-        self.assertEqual(clearance, 0.35)
-
-    def test_nearest_return_in_the_sector_wins(self):
-        clearance = directional_clearance(
-            [math.radians(-40), 0.0, math.radians(40)], [0.4, 0.8, 0.3], forward=1
+class ClearanceTests(unittest.TestCase):
+    def test_nearest_return_in_any_direction_wins(self):
+        clearance = nearest_clearance(
+            [0.0, math.pi / 2, math.pi], [0.7, 0.3, 0.1]
         )
-        self.assertEqual(clearance, 0.3)
-
-    def test_points_outside_the_travel_sector_are_ignored(self):
-        clearance = directional_clearance(
-            [math.radians(46), math.radians(-46)], [0.1, 0.15], forward=1
-        )
-        self.assertIsNone(clearance)
+        self.assertEqual(clearance, 0.1)
 
     def test_zero_and_non_finite_returns_are_ignored(self):
-        clearance = directional_clearance(
-            [0.0, 0.1, 0.2, 0.3], [0.0, math.inf, math.nan, 0.6], forward=1
+        clearance = nearest_clearance(
+            [0.0, 0.1, 0.2, 0.3], [0.0, math.inf, math.nan, 0.6]
         )
         self.assertEqual(clearance, 0.6)
+
+    def test_no_valid_returns_has_no_clearance(self):
+        self.assertIsNone(nearest_clearance([0.0, math.nan], [0.0, 0.1]))
 
 
 class IndicatorTests(unittest.TestCase):
     def setUp(self):
         self.output = RecordingOutput()
-        self.indicator = DirectionalSafetyIndicator(self.output)
+        self.indicator = SafetyIndicator(self.output)
 
-    def test_direction_change_rechecks_the_latest_scan(self):
+    def test_direction_change_does_not_change_the_clearance(self):
         self.indicator.update_scan(FakeScan([(0.0, 0.1), (math.pi, 0.8)]))
         self.assertEqual(self.indicator.set_motion(1).signal, SafetySignal.RED)
-        self.assertEqual(self.indicator.set_motion(-1).signal, SafetySignal.GREEN)
+        reading = self.indicator.set_motion(-1)
+        self.assertEqual(reading.signal, SafetySignal.RED)
+        self.assertEqual(reading.clearance_m, 0.1)
 
     def test_scan_updates_the_signal_while_moving(self):
         self.indicator.set_motion(1)
@@ -90,10 +81,12 @@ class IndicatorTests(unittest.TestCase):
             SafetySignal.YELLOW,
         )
 
-    def test_stopped_is_green(self):
+    def test_stopped_keeps_the_scan_signal(self):
         self.indicator.update_scan(FakeScan([(0.0, 0.05)]))
         self.indicator.set_motion(1)
-        self.assertEqual(self.indicator.set_motion(0).signal, SafetySignal.GREEN)
+        reading = self.indicator.set_motion(0)
+        self.assertEqual(reading.signal, SafetySignal.RED)
+        self.assertEqual(reading.clearance_m, 0.05)
 
     def test_output_is_only_written_when_the_colour_changes(self):
         self.indicator.update_scan(FakeScan([(0.0, 0.8)]))

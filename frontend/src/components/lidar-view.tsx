@@ -176,6 +176,12 @@ export function LidarView({ onSafetySignalChange }: LidarViewProps) {
         ? "LiDAR link up, waiting for a turn…"
         : "No LiDAR stream. Start backend/lidar_stream.py on the robot.";
 
+  const nearest = summary?.safetyClearance;
+  const nearestLabel =
+    live && typeof nearest === "number" && Number.isFinite(nearest)
+      ? `${nearest.toFixed(2)} m`
+      : "—";
+
   return (
     <section className="lidar-panel" aria-label="Robot LiDAR scan">
       <div className={`camera-status ${live && !summary?.demo ? "is-live" : ""}`} role="status" aria-live="polite">
@@ -186,6 +192,9 @@ export function LidarView({ onSafetySignalChange }: LidarViewProps) {
       <figure className={`lidar-plot ${live ? "is-live" : ""} ${summary?.demo ? "is-demo" : ""}`}>
         <canvas ref={canvasRef} width={SIZE} height={SIZE} aria-label="Top-down LiDAR scan, robot facing up" />
         {!live && <span className="camera-placeholder">No scan</span>}
+        <span className="lidar-nearest">
+          Nearest object <strong>{nearestLabel}</strong>
+        </span>
         <figcaption>
           <span>Top-down · forward is up</span>
           <span className="lidar-zooms">

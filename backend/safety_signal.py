@@ -1,4 +1,4 @@
-"""Direction-aware LiDAR clearance signals and an LED hardware boundary.
+"""Omnidirectional LiDAR clearance signals and an LED hardware boundary.
 
 The scanner uses the robot frame: zero radians is forward and angles increase to
 the left.  This module deliberately knows nothing about the T-mini serial protocol
@@ -15,7 +15,6 @@ import threading
 
 RED_DISTANCE_M = 0.20
 GREEN_DISTANCE_M = 0.50
-DEFAULT_SECTOR_DEGREES = 90.0
 
 
 class SafetySignal(str, Enum):
@@ -79,42 +78,29 @@ def signal_for_clearance(clearance_m):
     return SafetySignal.GREEN
 
 
-def _angular_distance(left, right):
-    return abs((left - right + math.pi) % (2 * math.pi) - math.pi)
+def nearest_clearance(angles, ranges):
+    """Return the nearest valid range anywhere around the robot.
 
-
-def directional_clearance(angles, ranges, forward, sector_degrees=DEFAULT_SECTOR_DEGREES):
-    """Return the nearest valid range in the requested travel direction.
-
-    Positive ``forward`` selects a cone centred on the nose; negative selects the
-    same cone behind the robot.  A zero range is the scanner's "no return" value
-    and is ignored.  ``None`` means stopped or no obstacle was returned in-sector.
+    A zero range is the scanner's "no return" value and is ignored. ``None``
+    means that the scan contained no usable obstacle return.
     """
-    if forward == 0:
-        return None
-    if forward not in (-1, 1):
-        raise ValueError("forward must be -1, 0, or 1")
-    if not 0 < sector_degrees <= 360:
-        raise ValueError("sector_degrees must be in (0, 360]")
-
-    centre = 0.0 if forward > 0 else math.pi
-    half_width = math.radians(sector_degrees) / 2
     candidates = (
         distance
         for angle, distance in zip(angles, ranges)
         if math.isfinite(angle)
         and math.isfinite(distance)
         and distance > 0
-        and _angular_distance(angle, centre) <= half_width
     )
     return min(candidates, default=None)
 
 
-class DirectionalSafetyIndicator:
-    """Combine the latest scan and drive direction, then drive an LED output."""
+class SafetyIndicator:
+    """Drive an LED from the nearest return in the latest full scan."""
 
-    def __init__(self, output=None, sector_degrees=DEFAULT_SECTOR_DEGREES):
+    def __init__(self, output=None, sector_degrees=None):
         self.output = output or NoHardwareLedOutput()
+        # Kept as an ignored argument so older launch code can migrate without a
+        # coordinated deploy. Clearance is always evaluated over the full scan.
         self.sector_degrees = sector_degrees
         self._forward = 0
         self._angles = None
@@ -143,15 +129,12 @@ class DirectionalSafetyIndicator:
 
     def _evaluate_locked(self):
         direction = "forward" if self._forward > 0 else "reverse" if self._forward < 0 else "stopped"
-        if self._forward == 0:
-            reading = SafetyReading(SafetySignal.GREEN, None, direction)
-        elif self._angles is None:
+        if self._angles is None:
             # Red is the fail-safe choice while moving without a scan.
-            reading = SafetyReading(SafetySignal.RED, None, direction)
+            signal = SafetySignal.RED if self._forward != 0 else SafetySignal.GREEN
+            reading = SafetyReading(signal, None, direction)
         else:
-            clearance = directional_clearance(
-                self._angles, self._ranges, self._forward, self.sector_degrees
-            )
+            clearance = nearest_clearance(self._angles, self._ranges)
             signal = SafetySignal.GREEN if clearance is None else signal_for_clearance(clearance)
             reading = SafetyReading(signal, clearance, direction)
 
@@ -164,3 +147,8 @@ class DirectionalSafetyIndicator:
         close = getattr(self.output, "close", None)
         if callable(close):
             close()
+
+
+# Keep the former public name working for robot-side integrations while they move
+# to the clearer name. Its behaviour is now omnidirectional.
+DirectionalSafetyIndicator = SafetyIndicator

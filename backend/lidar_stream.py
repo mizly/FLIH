@@ -40,7 +40,7 @@ import lidar as lidar_module
 from fly_advisor import DEFAULT_CHECKPOINT, FlyPolicyAdvisor
 from lidar import TminiPlus
 from omni_fusion import OmniFusion
-from safety_signal import DirectionalSafetyIndicator, load_led_output
+from safety_signal import SafetyIndicator, load_led_output
 
 # A turn is ~667 points and the scanner tops out near 10 Hz, so publishing every
 # revolution costs well under a tenth of what the video link does. No point rounding
@@ -83,9 +83,7 @@ def parse_args(argv=None):
                              "exercise the web path with no scanner attached")
     parser.add_argument("--led-driver", default=os.environ.get("ROBOT_LED_DRIVER", ""),
                         help="optional LED output as module:factory; no hardware by default")
-    parser.add_argument("--safety-sector-deg", type=float,
-                        default=float(os.environ.get("ROBOT_LED_SECTOR_DEGREES", "90")),
-                        help="width of the forward/reverse clearance cone (default: 90)")
+    parser.add_argument("--safety-sector-deg", type=float, help=argparse.SUPPRESS)
     parser.add_argument("--omni-interval", type=float,
                         default=float(os.environ.get("ROBOT_OMNI_INTERVAL", "5")),
                         help="minimum seconds between OMNI fusion calls (default: 5)")
@@ -215,9 +213,7 @@ def main():
     signal.signal(signal.SIGTERM, shutdown)
 
     lidar = None
-    indicator = DirectionalSafetyIndicator(
-        load_led_output(args.led_driver), args.safety_sector_deg
-    )
+    indicator = SafetyIndicator(load_led_output(args.led_driver))
     fusion = OmniFusion(args.omni_interval, enabled=not args.no_omni)
     log("OMNI camera/LiDAR fusion %s" % ("enabled" if fusion.enabled else "disabled"))
     fly_advisor = FlyPolicyAdvisor(args.fly_checkpoint, enabled=not args.no_fly_policy)
