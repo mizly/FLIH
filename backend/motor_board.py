@@ -30,8 +30,10 @@ the side matters for a differential drive, and a wrong side map is invisible dri
 straight - every motor gets the same value - and only shows up as a broken turn.
 """
 
+import math
 import os
 import struct
+import threading
 import time
 
 TRANSPORT = (os.environ.get("ROBOT_TRANSPORT", "") or "serial").strip().lower()
@@ -106,9 +108,20 @@ OPEN_LOOP = MOTOR_TYPE == 4
 DRIVE_COMMAND = "pwm" if OPEN_LOOP else "spd"
 SPEED_LIMIT = 3600 if OPEN_LOOP else 1000  # Manual sections 8 and 9.
 
-DRIVE_SPEED = number("ROBOT_DRIVE_SPEED", 1000 if OPEN_LOOP else 250, 0, SPEED_LIMIT)
+DRIVE_SPEED = number("ROBOT_DRIVE_SPEED", 1800 if OPEN_LOOP else 500, 0, SPEED_LIMIT)
 # Spinning in place is the twitchiest thing to tune, so it gets its own ceiling.
 TURN_SPEED = number("ROBOT_TURN_SPEED", DRIVE_SPEED, 0, SPEED_LIMIT)
+
+# How much of a full turn to apply while also driving forward, as a fraction. At 1.0 a
+# forward+turn command cancels one side to exactly zero - the inside wheels stop dead
+# and the robot lurches instead of arcing. Below 1.0 both sides keep turning and the
+# robot curves. Pure spins (forward == 0) always get full authority regardless.
+TURN_RATIO = max(0.0, min(1.0, float(os.environ.get("ROBOT_TURN_RATIO", "0.5"))))
+
+# Floor for a non-zero commanded speed. Mixing can ask for a speed too small to break
+# static friction, which reads as a stalled wheel and, on $spd, as the PID grinding
+# against a load it cannot move. 0 disables the floor.
+MIN_SPEED = number("ROBOT_MIN_SPEED", 0 if OPEN_LOOP else 120, 0, SPEED_LIMIT)
 
 
 def int16(value) -> list:
@@ -194,9 +207,14 @@ class MotorBoard:
     def __init__(self) -> None:
         self.signs = motor_signs()
         self.link = I2CLink() if TRANSPORT == "i2c" else SerialLink()
+        # robot_websocket.py stops the motors from a watchdog thread while the socket
+        # thread may be mid-drive. Two interleaved writes on one link produce a frame
+        # the board reads as neither command, so serialise them.
+        self.lock = threading.Lock()
 
     def command(self, name: str, args: str = "") -> str:
-        return self.link.command(name, args)
+        with self.lock:
+            return self.link.command(name, args)
 
     def write_speeds(self, speeds) -> None:
         signed = [
@@ -209,17 +227,53 @@ class MotorBoard:
         """Hold still. On $spd the PID keeps braking, which is what a stop wants."""
         self.write_speeds((0, 0, 0, 0))
 
+    def poll_errors(self) -> str:
+        """Any `$err:` the relay has sent back since the last poll, or "".
+
+        Drive frames are written without waiting for a reply, so without this the
+        relay's errors - including a watchdog stop that never reached the board - are
+        read by nobody. Only meaningful on the serial transport; I2CLink reports
+        failures inline from command().
+        """
+        if not isinstance(self.link, SerialLink):
+            return ""
+        with self.lock:
+            pending = self.link.drain()
+        return "\n".join(
+            line for line in pending.splitlines() if line.startswith("$err:")
+        )
+
     def release(self) -> None:
         """Cut drive entirely so the wheels push freely. $spd:0 alone stays clamped."""
         self.command("pwm", "0,0,0,0")
 
+    @staticmethod
+    def with_floor(speed: float) -> int:
+        """Round away from zero to MIN_SPEED, so a slow wheel turns instead of stalling."""
+        value = int(round(speed))
+        if value == 0 or MIN_SPEED == 0:
+            return value
+        return int(math.copysign(max(abs(value), MIN_SPEED), value))
+
     def drive(self, forward: int, turn: int) -> None:
-        """Mix forward/turn onto the two sides. Positive turn swings right."""
-        left = max(-1, min(1, forward + turn))
-        right = max(-1, min(1, forward - turn))
+        """Mix forward/turn onto the two sides. Positive turn swings right.
+
+        Clamping each side to +-1 the way this used to zeroes the inside wheels on any
+        forward+turn combination. Scale the turn instead and normalise, which keeps the
+        ratio between the sides and leaves both of them driving.
+        """
+        authority = 1.0 if forward == 0 else TURN_RATIO
+        left = forward + turn * authority
+        right = forward - turn * authority
+        peak = max(1.0, abs(left), abs(right))
+        left /= peak
+        right /= peak
         speed = TURN_SPEED if forward == 0 else DRIVE_SPEED
         self.write_speeds(
-            tuple((left if side == "L" else right) * speed for side in MOTOR_SIDES)
+            tuple(
+                self.with_floor((left if side == "L" else right) * speed)
+                for side in MOTOR_SIDES
+            )
         )
 
     def configure(self) -> None:

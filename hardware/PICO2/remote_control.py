@@ -125,14 +125,20 @@ def write_register(register, payload):
 
 
 def send_stop():
-    """Zero whichever channel was last driving, so a stop matches the drive mode."""
+    """Zero whichever channel was last driving. True only if the board took it.
+
+    The caller must not treat the robot as stopped until this returns True. The board
+    holds its last speed until something overwrites it, so a write that raises here
+    leaves the wheels turning at whatever they were doing.
+    """
     try:
         if TRANSPORT == "i2c":
             write_register(last_drive_reg, [0] * 8)
         else:
             link.write("$spd:0,0,0,0#".encode())
+        return True
     except Exception:
-        pass
+        return False
 
 
 def handle(frame):
@@ -191,13 +197,24 @@ def read_host():
 
 try:
     send_stop()
+    stop_failures = 0
     while True:
         read_host()
         if driving and time.ticks_diff(time.ticks_ms(), last_command) > COMMAND_TIMEOUT_MS:
-            send_stop()
-            driving = False
-            led.value(0)
+            if send_stop():
+                driving = False
+                stop_failures = 0
+                led.value(0)
+            else:
+                # Leave driving set so the next pass retries. Clearing it here would
+                # strand the wheels at their last speed with nothing left to stop them.
+                stop_failures += 1
+                if stop_failures % 200 == 1:  # ~1 s apart, not every 5 ms.
+                    reply("$err:stop:watchdog write failed, retrying#")
         time.sleep_ms(5)
 finally:
-    send_stop()
+    for _ in range(20):  # The bus is marginal; do not exit on a single failed write.
+        if send_stop():
+            break
+        time.sleep_ms(10)
     led.value(0)

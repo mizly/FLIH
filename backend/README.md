@@ -61,7 +61,14 @@ Use `ws://127.0.0.1:3000/ws/robot` locally. The protocol sends JSON drive states
 with `forward` and `turn`, each `-1`, `0`, or `1`; positive `turn` swings right. The robot authenticates with an
 `Authorization: Bearer` header; the server never sends `ROBOT_API_KEY` to browsers.
 The bridge stops the motors when the socket closes, errors, receives invalid input,
-or gets a stop command, and releases them on exit.
+or gets a stop command, and releases them on exit. It also runs its own watchdog: no
+drive frame for `ROBOT_COMMAND_TIMEOUT` seconds and the motors are stopped, re-asserted
+until a write succeeds. That is the layer that still fires when a socket stalls open
+without ever closing, which nothing on the server side can detect.
+
+Diagonals are mixed rather than clamped. Turning at full authority while driving
+forward cancels the inside wheels to exactly zero, which reads as two motors stalling;
+`ROBOT_TURN_RATIO` scales the turn so both sides keep driving and the robot arcs.
 
 ## Checking the wiring first
 
@@ -101,8 +108,11 @@ hardware changes.
 | `ROBOT_I2C_BUS`            | `7`     | On the `i2c` transport. Orin 40-pin pins 3/5; bus 1 is pins 27/28 |
 | `ROBOT_I2C_ADDRESS`        | `0x26`  | Board address on the `i2c` transport                 |
 | `ROBOT_MOTOR_SIDES`        | `R,L,R,L` | Which side each of M1-M4 drives                    |
-| `ROBOT_DRIVE_SPEED`        | `250`   | Forward/reverse speed in mm/s (max 1000)             |
+| `ROBOT_DRIVE_SPEED`        | `500`   | Forward/reverse speed in mm/s (max 1000)             |
 | `ROBOT_TURN_SPEED`         | drive speed | Spin-in-place speed in mm/s                      |
+| `ROBOT_TURN_RATIO`         | `0.5`   | Turn authority while also driving; `1.0` stalls the inside wheels |
+| `ROBOT_MIN_SPEED`          | `120`   | Floor for a non-zero wheel speed, so mixing cannot command a stall |
+| `ROBOT_COMMAND_TIMEOUT`    | `1.0`   | Seconds of silence before the bridge stops the motors |
 | `ROBOT_MOTOR_SIGNS`        | `1,1,1,1` | Per-motor polarity for M1–M4                       |
 | `ROBOT_MOTOR_TYPE`         | `1`     | 1: 520, 2: 310, 3: TT with encoder, 4: TT without    |
 | `ROBOT_REDUCTION_RATIO`    | `40`    | Gearbox ratio; **wrong by default on the board**     |
