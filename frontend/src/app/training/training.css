@@ -469,7 +469,18 @@ td .training-muted {
   }
 }
 .training-scene {
+  margin: 0;
+}
+.training-visuals {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(330px, 0.85fr);
+  gap: 20px;
   margin: 20px 0;
+  align-items: stretch;
+}
+.training-visuals > .training-panel {
+  display: flex;
+  flex-direction: column;
 }
 .training-scene-viewport {
   position: relative;
@@ -572,4 +583,227 @@ td .training-muted {
   border-radius: 50%;
   margin-left: 12px;
   background: transparent;
+}
+.training-brain {
+  overflow: hidden;
+}
+.training-brain-heading a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #78b9ad;
+  font-size: 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.training-brain-heading a:hover {
+  color: #a1d7cc;
+}
+.training-brain-heading a:focus-visible {
+  outline: 2px solid #77cdbb;
+  outline-offset: 4px;
+}
+.training-brain-stage {
+  position: relative;
+  min-height: 300px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: radial-gradient(
+    circle at 50% 46%,
+    #244047 0,
+    #13262c 48%,
+    #0e1a1f 100%
+  );
+  border-radius: 10px;
+  overflow: hidden;
+}
+.training-brain-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(#ffffff07 1px, transparent 1px);
+  background-size: 100% 5px;
+  opacity: 0.35;
+}
+.training-brain-stage svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.training-brain-status {
+  position: absolute;
+  z-index: 1;
+  top: 14px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #afc5c5;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.training-brain-status span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #829397;
+}
+.training-brain-status span {
+  background: #71d4bc;
+  box-shadow: 0 0 8px #71d4bc;
+}
+.training-brain-lobes ellipse,
+.training-brain-lobes path {
+  fill: url(#brain-glow);
+  stroke: #6d969a42;
+  stroke-width: 0.8;
+}
+.training-brain-lobes path {
+  fill: none;
+}
+.training-brain-edges line {
+  stroke: #7ba2a8;
+  stroke-width: 0.38;
+  opacity: 0.2;
+}
+.training-brain-edges line.is-signal {
+  stroke: #76d4c0;
+  stroke-width: 1;
+  opacity: 0.65;
+}
+.training-brain-nodes circle {
+  fill: #a9bec0;
+  stroke-width: 0.8;
+}
+.training-brain-nodes .sensory {
+  stroke: #84d5f0;
+}
+.training-brain-nodes .descending {
+  stroke: #f0c865;
+}
+.training-brain-nodes .has-activity {
+  filter: url(#node-glow);
+}
+.training-brain-nodes .positive {
+  fill: #6bd8c1;
+}
+.training-brain-nodes .negative {
+  fill: #f0a16f;
+}
+.training-brain-nodes .unmeasured {
+  fill: #9db0b1;
+}
+.training-brain-count {
+  position: absolute;
+  right: 16px;
+  bottom: 13px;
+  color: #dce8e6;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.training-brain-count strong,
+.training-brain-count span {
+  display: block;
+}
+.training-brain-count strong {
+  font-size: 17px;
+  font-weight: 500;
+}
+.training-brain-count span {
+  color: #829b9e;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.training-brain-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  color: #63716b;
+  font-size: 9px;
+}
+.training-brain-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.training-brain-legend i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #879da0;
+}
+.training-brain-legend i.positive {
+  background: #6bd8c1;
+}
+.training-brain-legend i.negative {
+  background: #f0a16f;
+}
+.training-brain-legend i.unmeasured {
+  background: #718588;
+}
+.training-brain-ranked {
+  margin-top: 12px;
+  border-top: 1px solid #e8ece6;
+  padding-top: 10px;
+}
+.training-brain-ranked > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #87928c;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.training-brain-ranked > div {
+  display: grid;
+  grid-template-columns: 1fr 0.8fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 9px;
+  color: #77847d;
+}
+.training-brain-ranked code {
+  color: #405f59;
+}
+.training-brain-ranked strong {
+  font-family: monospace;
+  font-size: 9px;
+  font-weight: 500;
+}
+.training-brain-ranked strong.positive {
+  color: #26846d;
+}
+.training-brain-ranked strong.negative {
+  color: #b75e31;
+}
+.training-brain-unavailable {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: #f1f4ef;
+  color: #78847e;
+  font-size: 10px;
+}
+.training-brain .training-caption {
+  margin: 10px 0 0;
+}
+@media (max-width: 1050px) {
+  .training-visuals {
+    grid-template-columns: 1fr;
+  }
+  .training-brain-stage {
+    min-height: 340px;
+  }
+}
+@media (max-width: 540px) {
+  .training-brain-stage {
+    min-height: 250px;
+  }
 }

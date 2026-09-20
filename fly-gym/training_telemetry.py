@@ -19,6 +19,8 @@ class TrainingTelemetry:
         self.started = time.time()
         self.preview_enabled = os.environ.get("FLY_GYM_PREVIEW", "1") != "0"
         self._preview_due = 0.0
+        self.activity_enabled = os.environ.get("FLY_GYM_NEURAL_ACTIVITY", "1") != "0"
+        self._activity_due = 0.0
         self.data = dict(schema_version=1, run_id=uuid.uuid4().hex[:12],
                          started_at=self.started, updated_at=self.started,
                          status="running", phase="initializing", config=config,
@@ -26,6 +28,43 @@ class TrainingTelemetry:
                          environment_steps=0, episodes_total=0, successes=0,
                          collision_episodes=0, loss_history=[], episodes=[],
                          iterations=[], checkpoints=[], buffer_counts={}, error=None)
+
+    def neural_activity(self, hidden, neuron_ids, neuron_kinds, episode, step, limit=96):
+        """Publish the strongest measured RNN states without copying the full brain.
+
+        The model is rate-based rather than spiking, so values are signed hidden
+        activations. Only a small top-|activation| sample crosses from GPU to CPU.
+        """
+        if not self.activity_enabled:
+            return
+        now = time.monotonic()
+        if now < self._activity_due:
+            return
+        self._activity_due = now + 0.5
+        if not self.lock.acquire(blocking=False):
+            return
+        try:
+            state = hidden.detach().float().flatten()
+            count = min(int(limit), int(state.numel()))
+            magnitudes, indices = state.abs().topk(count, sorted=True)
+            values = state.index_select(0, indices)
+            indices = indices.cpu().tolist()
+            values = values.cpu().tolist()
+            magnitudes = magnitudes.cpu().tolist()
+            sample = dict(
+                captured_at=time.time(), episode=str(episode), step=int(step),
+                semantics="signed_tanh_hidden_state",
+                neurons=[dict(index=int(index), root_id=str(neuron_ids[index]),
+                              kind=neuron_kinds[index], activation=float(value),
+                              magnitude=float(magnitude))
+                         for index, value, magnitude in zip(indices, values, magnitudes)])
+            json.dumps(sample, allow_nan=False)
+            self.data["neural_activity"] = sample
+        except Exception:
+            # Optional observability must never put the training run at risk.
+            self.activity_enabled = False
+        finally:
+            self.lock.release()
 
     def preview(self, env, episode, step, collision=False):
         """Copy only CPU geometry from env 0, at most twice per wall-clock second.

@@ -16,6 +16,7 @@ import {
   Terminal,
 } from "lucide-react";
 import type { TrainingResponse } from "@/lib/training-types";
+import TrainingBrain from "./training-brain";
 
 const TrainingScene = dynamic(() => import("./training-scene"), { ssr: false });
 
@@ -320,12 +321,20 @@ export default function TrainingDashboard() {
                 Training stopped: {run.error}
               </div>
             )}
-            <TrainingScene
-              key={run.run_id}
-              preview={run.preview}
-              live={!!live}
-              phase={run.phase}
-            />
+            <div className="training-visuals">
+              <TrainingScene
+                key={run.run_id}
+                preview={run.preview}
+                live={!!live}
+                phase={run.phase}
+              />
+              <TrainingBrain
+                phase={run.phase}
+                live={!!live}
+                activity={run.neural_activity}
+                connectome={run.connectome}
+              />
+            </div>
             <div className="training-metrics">
               {[
                 [

@@ -7,6 +7,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 import threading
+import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from training_telemetry import TrainingTelemetry
@@ -63,6 +64,22 @@ class TrainingTelemetryTests(unittest.TestCase):
         run.preview(env, 0, 1)
         self.assertNotIn("preview", run.data)
         json.dumps(run.data, allow_nan=False)
+
+    def test_neural_activity_reports_real_signed_top_states(self):
+        run = TrainingTelemetry({"train_steps": 1})
+        hidden = torch.tensor([.1, -.9, .5, -.2])
+        with patch("training_telemetry.time.monotonic", return_value=1):
+            run.neural_activity(
+                hidden,
+                ["root-0", "root-1", "root-2", "root-3"],
+                ["sensory", "interneuron", "descending", "interneuron"],
+                "1:3", 42, limit=2)
+        sample = run.data["neural_activity"]
+        self.assertEqual(sample["semantics"], "signed_tanh_hidden_state")
+        self.assertEqual(sample["step"], 42)
+        self.assertEqual(sample["neurons"][0]["root_id"], "root-1")
+        self.assertAlmostEqual(sample["neurons"][0]["activation"], -.9, places=5)
+        self.assertEqual(sample["neurons"][1]["kind"], "descending")
 
     def test_running_snapshot_and_completion(self):
         with tempfile.TemporaryDirectory() as directory:

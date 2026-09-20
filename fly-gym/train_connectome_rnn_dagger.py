@@ -807,6 +807,12 @@ def rollout_and_collect_balanced(
 
             # Write back hidden state
             h[gpu_idx_tensor] = h_new
+            if telemetry and 0 in gpu_ids:
+                env_zero = gpu_ids.index(0)
+                telemetry.neural_activity(
+                    h_new[env_zero], agent.telemetry_neuron_ids,
+                    agent.telemetry_neuron_kinds,
+                    f"{telemetry.data['iteration']}:{preview_episodes[0]}", steps[0])
 
         # 4. Teacher planning (CPU) — skip done/truncated envs
         for i in range(n_envs):
@@ -1050,7 +1056,7 @@ def _train():
     dtype = DTYPE
     print(f"[device] Using {device} ({dtype})")
 
-    cell, pr_positions, input_splits, _ = build_connectome_cell(
+    cell, pr_positions, input_splits, id2idx = build_connectome_cell(
         edge_path=EDGE_PATH,
         device=device,
         dtype=dtype,
@@ -1079,6 +1085,23 @@ def _train():
         dtype=dtype,
         input_scale_init=INPUT_SCALE_INIT
     ).to(device)
+
+    # Stable FAFB identity metadata for the dashboard's sampled activity view.
+    idx_to_id = [None] * cell.N
+    for root_id, index in id2idx.items():
+        idx_to_id[index] = root_id
+    input_indices = set(cell.input_nodes.detach().cpu().tolist())
+    output_indices = set(cell.output_nodes.detach().cpu().tolist())
+    agent.telemetry_neuron_ids = idx_to_id
+    agent.telemetry_neuron_kinds = [
+        "sensory" if index in input_indices else
+        "descending" if index in output_indices else "interneuron"
+        for index in range(cell.N)
+    ]
+    if telemetry:
+        telemetry.update(connectome=dict(
+            dataset="FAFB v783", neurons=cell.N,
+            synapses=int(cell.W_values.numel()), activity_semantics="signed_tanh_hidden_state"))
 
     # Load once at startup. Iterations continue using the current in-memory weights.
     resume_path = resolve_resume_checkpoint(

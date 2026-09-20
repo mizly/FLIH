@@ -61,6 +61,25 @@ export type TrainingSnapshot = {
   }[];
   checkpoints: { name: string; iteration: number; saved_at: number }[];
   buffer_counts: Record<string, number>;
+  connectome?: {
+    dataset: string;
+    neurons: number;
+    synapses: number;
+    activity_semantics: "signed_tanh_hidden_state";
+  };
+  neural_activity?: {
+    captured_at: number;
+    episode: string;
+    step: number;
+    semantics: "signed_tanh_hidden_state";
+    neurons: {
+      index: number;
+      root_id: string;
+      kind: "sensory" | "interneuron" | "descending";
+      activation: number;
+      magnitude: number;
+    }[];
+  };
 };
 
 export type TrainingResponse = { run: TrainingSnapshot | null; stale: boolean };

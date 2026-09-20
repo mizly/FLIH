@@ -61,6 +61,26 @@ function fixture(): TrainingSnapshot {
       pre_collision: 80,
       start: 40,
     },
+    connectome: {
+      dataset: "FAFB v783",
+      neurons: 139255,
+      synapses: 3732460,
+      activity_semantics: "signed_tanh_hidden_state",
+    },
+    neural_activity: {
+      captured_at: Date.now() / 1000,
+      episode: "2:7",
+      step: 150,
+      semantics: "signed_tanh_hidden_state",
+      neurons: Array.from({ length: 96 }, (_, index) => ({
+        index: 1200 + index,
+        root_id: `7205759406000000${index.toString().padStart(2, "0")}`,
+        kind:
+          index % 17 === 0 ? ("descending" as const) : ("interneuron" as const),
+        activation: (index % 2 ? -1 : 1) * (0.95 - index * 0.006),
+        magnitude: 0.95 - index * 0.006,
+      })),
+    },
   };
 }
 
@@ -85,6 +105,11 @@ test("training dashboard handles waiting, live updates and disconnection", async
   await expect(page.getByRole("status")).toHaveText("Live training");
   await expect(page.getByText("70.0%", { exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: /Learning curve/ })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: /bilateral FAFB fly-brain connectome/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Last measured collection state")).toBeVisible();
+  await expect(page.getByText("Strongest measured states")).toBeVisible();
   run = { ...run, status: "completed" };
   await expect(page.getByRole("status")).toHaveText("Run completed");
   unavailable = true;
