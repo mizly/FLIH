@@ -1,0 +1,357 @@
+{
+  "glfw-10": {
+    "metadata": {
+      "mujoco": "3.3.6",
+      "MUJOCO_GL": "glfw",
+      "context": "mujoco.glfw",
+      "gl_vendor": "NVIDIA Corporation",
+      "gl_renderer": "NVIDIA Tegra Orin (nvgpu)/integrated",
+      "envs": 10,
+      "steps_per_env": 100,
+      "warmup_per_env": 10,
+      "finish_before_read": false,
+      "initialization_seconds": 2.982854013999713,
+      "render_size": [
+        240,
+        135
+      ],
+      "observation_size": [
+        128,
+        128
+      ],
+      "offscreen_size": [
+        640,
+        480
+      ],
+      "offscreen_samples": 4,
+      "model_geoms": 30,
+      "scene_geoms": 32,
+      "physics_timestep": 0.002,
+      "frame_skip": 10,
+      "lidar_rays": 667,
+      "wall_seconds": 13.053275303000191,
+      "env_steps_per_second": 76.60912505002925,
+      "mj_ray_calls": 80040,
+      "renderer_creations": 0,
+      "context_creations": 0
+    },
+    "timings": {
+      "camera.render": {
+        "calls": 2000,
+        "mean_call_ms": 2.1416461684984824,
+        "p95_call_ms": 6.816963900155312,
+        "ms_per_env_step": 4.283292336996965,
+        "wall_percent": 32.81392782708325
+      },
+      "camera.resize": {
+        "calls": 2000,
+        "mean_call_ms": 0.49734199101476406,
+        "p95_call_ms": 0.5577964001986401,
+        "ms_per_env_step": 0.9946839820295281,
+        "wall_percent": 7.6201869564561155
+      },
+      "camera.update_scene": {
+        "calls": 2000,
+        "mean_call_ms": 0.08739349251436579,
+        "p95_call_ms": 0.13605239928438095,
+        "ms_per_env_step": 0.17478698502873158,
+        "wall_percent": 1.3390277993183686
+      },
+      "draw.mjr_render": {
+        "calls": 2000,
+        "mean_call_ms": 0.22766492150230988,
+        "p95_call_ms": 0.35684920003404835,
+        "ms_per_env_step": 0.45532984300461976,
+        "wall_percent": 3.48824208817511
+      },
+      "lidar.sample_or_hold": {
+        "calls": 1000,
+        "mean_call_ms": 1.3244887249920794,
+        "p95_call_ms": 11.032338199220248,
+        "ms_per_env_step": 1.3244887249920794,
+        "wall_percent": 10.1467922360272
+      },
+      "observation.total": {
+        "calls": 1000,
+        "mean_call_ms": 8.345415243999923,
+        "p95_call_ms": 17.85932130014771,
+        "ms_per_env_step": 8.345415243999923,
+        "wall_percent": 63.933496002201046
+      },
+      "physics.mj_forward": {
+        "calls": 1000,
+        "mean_call_ms": 0.19260890898567595,
+        "p95_call_ms": 0.217813799963551,
+        "ms_per_env_step": 0.19260890898567595,
+        "wall_percent": 1.475559999423335
+      },
+      "physics.mj_step": {
+        "calls": 10000,
+        "mean_call_ms": 0.21196331260252918,
+        "p95_call_ms": 0.3255202003856539,
+        "ms_per_env_step": 2.119633126025292,
+        "wall_percent": 16.238323921185597
+      },
+      "readback.mjr_readPixels": {
+        "calls": 2000,
+        "mean_call_ms": 1.3706078499985779,
+        "p95_call_ms": 4.603311999835568,
+        "ms_per_env_step": 2.7412156999971558,
+        "wall_percent": 21.000213635018554
+      },
+      "scene.mjv_updateScene": {
+        "calls": 2000,
+        "mean_call_ms": 0.02732525198325675,
+        "p95_call_ms": 0.03994279963990266,
+        "ms_per_env_step": 0.0546505039665135,
+        "wall_percent": 0.4186727292417752
+      },
+      "step.total": {
+        "calls": 1000,
+        "mean_call_ms": 13.044907983005942,
+        "p95_call_ms": 22.590892650714522,
+        "ms_per_env_step": 13.044907983005942,
+        "wall_percent": 99.93589869362269
+      }
+    }
+  },
+  "egl-10": {
+    "metadata": {
+      "mujoco": "3.3.6",
+      "MUJOCO_GL": "egl",
+      "context": "mujoco.egl",
+      "gl_vendor": "NVIDIA Corporation",
+      "gl_renderer": "NVIDIA Tegra Orin (nvgpu)/integrated",
+      "envs": 10,
+      "steps_per_env": 100,
+      "warmup_per_env": 10,
+      "finish_before_read": false,
+      "initialization_seconds": 1.7796053179999944,
+      "render_size": [
+        240,
+        135
+      ],
+      "observation_size": [
+        128,
+        128
+      ],
+      "offscreen_size": [
+        640,
+        480
+      ],
+      "offscreen_samples": 4,
+      "model_geoms": 30,
+      "scene_geoms": 32,
+      "physics_timestep": 0.002,
+      "frame_skip": 10,
+      "lidar_rays": 667,
+      "wall_seconds": 11.47821064100026,
+      "env_steps_per_second": 87.12159336299267,
+      "mj_ray_calls": 80040,
+      "renderer_creations": 0,
+      "context_creations": 0
+    },
+    "timings": {
+      "camera.render": {
+        "calls": 2000,
+        "mean_call_ms": 1.6261332384915477,
+        "p95_call_ms": 3.0979124005625636,
+        "ms_per_env_step": 3.2522664769830953,
+        "wall_percent": 28.334263751581396
+      },
+      "camera.resize": {
+        "calls": 2000,
+        "mean_call_ms": 0.4703913674966316,
+        "p95_call_ms": 0.49611504982749466,
+        "ms_per_env_step": 0.9407827349932631,
+        "wall_percent": 8.196249088100716
+      },
+      "camera.update_scene": {
+        "calls": 2000,
+        "mean_call_ms": 0.06642755650955223,
+        "p95_call_ms": 0.08435915010522876,
+        "ms_per_env_step": 0.13285511301910446,
+        "wall_percent": 1.1574549132644851
+      },
+      "draw.mjr_render": {
+        "calls": 2000,
+        "mean_call_ms": 0.23035165900591892,
+        "p95_call_ms": 0.3172385998823301,
+        "ms_per_env_step": 0.46070331801183784,
+        "wall_percent": 4.0137207132808825
+      },
+      "lidar.sample_or_hold": {
+        "calls": 1000,
+        "mean_call_ms": 1.3456503930101462,
+        "p95_call_ms": 11.141843199538926,
+        "ms_per_env_step": 1.3456503930101462,
+        "wall_percent": 11.723520634858122
+      },
+      "observation.total": {
+        "calls": 1000,
+        "mean_call_ms": 7.067402008005956,
+        "p95_call_ms": 16.83436355001504,
+        "ms_per_env_step": 7.067402008005956,
+        "wall_percent": 61.57233238742928
+      },
+      "physics.mj_forward": {
+        "calls": 1000,
+        "mean_call_ms": 0.18418344600740966,
+        "p95_call_ms": 0.19463425032881787,
+        "ms_per_env_step": 0.18418344600740966,
+        "wall_percent": 1.6046355287252259
+      },
+      "physics.mj_step": {
+        "calls": 10000,
+        "mean_call_ms": 0.2016862513939486,
+        "p95_call_ms": 0.2842686000803951,
+        "ms_per_env_step": 2.0168625139394862,
+        "wall_percent": 17.571227580849904
+      },
+      "readback.mjr_readPixels": {
+        "calls": 2000,
+        "mean_call_ms": 1.2089010685035646,
+        "p95_call_ms": 2.6887668001108977,
+        "ms_per_env_step": 2.417802137007129,
+        "wall_percent": 21.064277461250978
+      },
+      "scene.mjv_updateScene": {
+        "calls": 2000,
+        "mean_call_ms": 0.021157378982479713,
+        "p95_call_ms": 0.029472999813151546,
+        "ms_per_env_step": 0.042314757964959426,
+        "wall_percent": 0.368652913667665
+      },
+      "step.total": {
+        "calls": 1000,
+        "mean_call_ms": 11.468303428999207,
+        "p95_call_ms": 21.21630950045983,
+        "ms_per_env_step": 11.468303428999207,
+        "wall_percent": 99.91368679046833
+      }
+    }
+  },
+  "egl-finish-10": {
+    "metadata": {
+      "mujoco": "3.3.6",
+      "MUJOCO_GL": "egl",
+      "context": "mujoco.egl",
+      "gl_vendor": "NVIDIA Corporation",
+      "gl_renderer": "NVIDIA Tegra Orin (nvgpu)/integrated",
+      "envs": 10,
+      "steps_per_env": 100,
+      "warmup_per_env": 10,
+      "finish_before_read": true,
+      "initialization_seconds": 2.2813489179998214,
+      "render_size": [
+        240,
+        135
+      ],
+      "observation_size": [
+        128,
+        128
+      ],
+      "offscreen_size": [
+        640,
+        480
+      ],
+      "offscreen_samples": 4,
+      "model_geoms": 30,
+      "scene_geoms": 32,
+      "physics_timestep": 0.002,
+      "frame_skip": 10,
+      "lidar_rays": 667,
+      "wall_seconds": 14.232831618000091,
+      "env_steps_per_second": 70.26008786159684,
+      "mj_ray_calls": 80040,
+      "renderer_creations": 0,
+      "context_creations": 0
+    },
+    "timings": {
+      "camera.render": {
+        "calls": 2000,
+        "mean_call_ms": 2.7783633135036325,
+        "p95_call_ms": 5.632854599934944,
+        "ms_per_env_step": 5.556726627007265,
+        "wall_percent": 39.041610103640515
+      },
+      "camera.resize": {
+        "calls": 2000,
+        "mean_call_ms": 0.48949100100071524,
+        "p95_call_ms": 0.5247874006272468,
+        "ms_per_env_step": 0.9789820020014304,
+        "wall_percent": 6.878336147554248
+      },
+      "camera.update_scene": {
+        "calls": 2000,
+        "mean_call_ms": 0.08735757000977173,
+        "p95_call_ms": 0.12159859988969399,
+        "ms_per_env_step": 0.17471514001954347,
+        "wall_percent": 1.2275501088524319
+      },
+      "diagnostic.glFinish": {
+        "calls": 2000,
+        "mean_call_ms": 1.0147975285012762,
+        "p95_call_ms": 2.501470799779781,
+        "ms_per_env_step": 2.0295950570025525,
+        "wall_percent": 14.2599527028462
+      },
+      "draw.mjr_render": {
+        "calls": 2000,
+        "mean_call_ms": 0.26895347099980427,
+        "p95_call_ms": 0.37905814997429843,
+        "ms_per_env_step": 0.5379069419996085,
+        "wall_percent": 3.7793389006255373
+      },
+      "lidar.sample_or_hold": {
+        "calls": 1000,
+        "mean_call_ms": 1.330934019990309,
+        "p95_call_ms": 11.041209000313756,
+        "ms_per_env_step": 1.330934019990309,
+        "wall_percent": 9.35115411825074
+      },
+      "observation.total": {
+        "calls": 1000,
+        "mean_call_ms": 9.606121423009427,
+        "p95_call_ms": 20.215689200449553,
+        "ms_per_env_step": 9.606121423009427,
+        "wall_percent": 67.492693518981
+      },
+      "physics.mj_forward": {
+        "calls": 1000,
+        "mean_call_ms": 0.18693414699464483,
+        "p95_call_ms": 0.19495584970172786,
+        "ms_per_env_step": 0.18693414699464483,
+        "wall_percent": 1.3134009592176406
+      },
+      "physics.mj_step": {
+        "calls": 10000,
+        "mean_call_ms": 0.2092255399964415,
+        "p95_call_ms": 0.31185455031845777,
+        "ms_per_env_step": 2.092255399964415,
+        "wall_percent": 14.700204823040025
+      },
+      "readback.mjr_readPixels": {
+        "calls": 2000,
+        "mean_call_ms": 1.2705516649980382,
+        "p95_call_ms": 3.222175749533559,
+        "ms_per_env_step": 2.5411033299960764,
+        "wall_percent": 17.853814323092063
+      },
+      "scene.mjv_updateScene": {
+        "calls": 2000,
+        "mean_call_ms": 0.027176517993211746,
+        "p95_call_ms": 0.037666000025637913,
+        "ms_per_env_step": 0.05435303598642349,
+        "wall_percent": 0.381884908395065
+      },
+      "step.total": {
+        "calls": 1000,
+        "mean_call_ms": 14.224496500996793,
+        "p95_call_ms": 24.719503749838616,
+        "ms_per_env_step": 14.224496500996793,
+        "wall_percent": 99.94143739470115
+      }
+    }
+  }
+}

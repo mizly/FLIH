@@ -213,8 +213,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .control-header .brand:hover { transform: translate(2px, 2px) rotate(0); box-shadow: 2px 2px 0 var(--ink); }
 .control-home { min-height: 46px; padding: 8px 17px; display: flex; align-items: center; gap: 8px; color: var(--ink); border: 2px solid var(--ink); border-radius: 19px 13px 18px 12px / 12px 18px 13px 19px; background: var(--yellow); box-shadow: 4px 4px 0 var(--ink); font-size: 16px; font-weight: 700; transform: rotate(1deg); transition: transform 0.1s, box-shadow 0.1s, background 0.1s; }
 .control-home:hover { color: white; background: var(--accent); box-shadow: 2px 2px 0 var(--ink); transform: translate(2px, 2px) rotate(-1deg); }
-.cockpit-layout { position: relative; z-index: 1; width: min(1480px, 100%); height: 100%; min-height: 0; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(310px, 0.58fr); gap: clamp(20px, 2.5vw, 38px); }
-.cockpit-vision { min-width: 0; min-height: 0; }
+/* Cameras across the top half, the two instrument cards side by side below.
+   Two 16:9 feeds are a wide, short pair, so giving them the full width and half
+   the height fits their shape instead of fighting it - which is what the old
+   tall left-hand column did. */
+.cockpit-layout { position: relative; z-index: 1; width: min(1480px, 100%); height: 100%; min-height: 0; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 2.5vw, 38px); }
+.cockpit-vision { grid-column: 1 / -1; min-width: 0; min-height: 0; }
 .camera-sketch-card, .lidar-sketch-card { position: relative; min-width: 0; min-height: 0; border: 3px solid var(--ink); background: white; box-shadow: 8px 8px 0 var(--ink); }
 .camera-sketch-card { height: 100%; padding: 11px; border-radius: 38px 18px 32px 21px / 21px 34px 18px 31px; transform: rotate(-0.25deg); }
 .paper-tape { position: absolute; z-index: 6; width: 82px; height: 24px; background: rgba(218, 213, 201, 0.78); border-left: 1px dashed rgba(45, 45, 45, 0.24); border-right: 1px dashed rgba(45, 45, 45, 0.24); pointer-events: none; }
@@ -223,16 +227,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .camera-status { min-height: 32px; padding: 5px 9px; display: flex; align-items: center; gap: 6px; color: #7b4c12; border: 2px dashed #b4772b; border-radius: 15px 9px 14px 10px / 10px 15px 9px 14px; background: #fff6d6; font-size: 12px; line-height: 1.15; }
 .camera-panel > .camera-status { position: absolute; z-index: 4; top: 13px; left: 50%; max-width: calc(100% - 34px); transform: translateX(-50%) rotate(0.3deg); white-space: nowrap; }
 .camera-status.is-live { color: #1d6b3a; border-color: #2e8c4f; background: #ebf8ed; }
-.camera-grid { height: 100%; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; overflow: hidden; border: 2px solid var(--ink); border-radius: 26px 10px 22px 12px / 14px 24px 11px 22px; background: #14161a; }
-.camera-feed { position: relative; min-width: 0; min-height: 0; margin: 0; overflow: hidden; background-color: #171a1d; background-image: repeating-linear-gradient( 0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 4px ); }
-.camera-feed:first-child { border-radius: 23px 4px 4px 10px / 12px 4px 4px 19px; }
-.camera-feed:last-child { border-radius: 4px 8px 19px 4px / 4px 21px 9px 4px; }
-.camera-feed canvas { width: 100%; height: 100%; display: block; object-fit: cover; }
+/* align-content centres the row of panes in a screen that is taller than two
+   16:9 frames side by side ever need to be. Without it the panes stretch to the
+   full height and the frames get cropped to fill them. */
+.camera-grid { height: 100%; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; align-content: center; gap: 4px; overflow: hidden; border: 2px solid var(--ink); border-radius: 26px 10px 22px 12px / 14px 24px 11px 22px; background: #14161a; }
+/* The pane carries the camera's own shape. backend/camera_stream.py publishes
+   640x360 and refuses any other aspect while rectifying, so a 16:9 box is the
+   one shape where the whole frame is visible at full size with nothing cropped
+   and no dead bands inside the pane. */
+.camera-feed { position: relative; aspect-ratio: 16 / 9; max-height: 100%; min-width: 0; min-height: 0; margin: 0; overflow: hidden; background-color: #171a1d; background-image: repeating-linear-gradient( 0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 4px ); }
+.camera-feed:first-child { justify-self: end; border-radius: 23px 4px 4px 10px / 12px 4px 4px 19px; }
+.camera-feed:last-child { justify-self: start; border-radius: 4px 8px 19px 4px / 4px 21px 9px 4px; }
+/* contain, not cover: the pane is already the frame's shape, so this changes
+   nothing in the normal case and keeps the whole frame visible in the ones that
+   are not - a --no-rectify capture at another aspect, or a pane squeezed by a
+   viewport too short for its 16:9 box. cover silently crops instead. */
+.camera-feed canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
 .camera-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #aba89f; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .camera-feed figcaption { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; padding: 44px 15px 13px; display: flex; align-items: center; justify-content: space-between; color: white; background: linear-gradient(transparent, rgba(8, 9, 10, 0.82)); font-size: 14px; font-weight: 700; }
 .camera-fps { color: #9be3ae; }
 .camera-feed.is-live::after { content: ""; position: absolute; z-index: 3; top: 16px; left: 16px; width: 10px; height: 10px; border: 2px solid white; border-radius: 57% 43% 61% 39%; background: var(--accent); }
-.cockpit-sidebar { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(260px, 1fr) auto; gap: 17px; }
+/* The bottom half: LiDAR notebook on the left, drive card on the right. */
+.cockpit-sidebar { grid-column: 1 / -1; min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: clamp(20px, 2.5vw, 38px); }
 .lidar-sketch-card { padding: 39px 9px 9px; border-radius: 21px 37px 19px 32px / 33px 18px 29px 20px; box-shadow: 6px 7px 0 var(--ink); transform: rotate(0.7deg); }
 .lidar-tape { top: -12px; right: 54px; transform: rotate(5deg); }
 .instrument-label { position: absolute; top: 7px; left: 12px; display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -250,7 +266,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .lidar-zoom { min-width: 34px; min-height: 29px; padding: 3px 6px; color: #e7e4dd; border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 7px 4px 8px 5px; background: rgba(255, 255, 255, 0.08); font-size: 11px; font-weight: 700; }
 .lidar-zoom:hover { color: var(--ink); background: var(--yellow); }
 .lidar-zoom.is-active { color: white; border-color: white; background: var(--blue); }
-.control-card { position: relative; width: 100%; margin: 0; padding: 13px 15px 11px; text-align: left; border: 3px solid var(--ink); border-radius: 31px 17px 28px 15px / 17px 29px 16px 27px; background: var(--yellow); box-shadow: 6px 6px 0 var(--ink); transform: rotate(-0.8deg); transition: background 0.3s ease, box-shadow 0.3s ease; }
+.control-card { position: relative; width: 100%; min-height: 0; margin: 0; padding: 13px 15px 11px; display: flex; flex-direction: column; text-align: left; border: 3px solid var(--ink); border-radius: 31px 17px 28px 15px / 17px 29px 16px 27px; background: var(--yellow); box-shadow: 6px 6px 0 var(--ink); transform: rotate(-0.8deg); transition: background 0.3s ease, box-shadow 0.3s ease; }
 .control-card.is-lidar-near { background: #fff2a8; box-shadow: 6px 6px 0 var(--ink), 0 0 18px 3px rgba(246, 194, 34, 0.48), inset 0 0 18px rgba(255, 221, 58, 0.2); }
 .control-card.is-lidar-danger { background: #ffc9c1; border-color: #8f2020; box-shadow: 6px 6px 0 var(--ink), 0 0 26px 7px rgba(205, 35, 35, 0.58), inset 0 0 22px rgba(255, 65, 45, 0.22); }
 .control-tack { position: absolute; top: 11px; right: 19px; width: 14px; height: 14px; border: 2px solid var(--ink); border-radius: 50%; background: var(--accent); box-shadow: 2px 2px 0 rgba(45, 45, 45, 0.28); }
@@ -260,7 +276,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .control-card h2 { margin: 0; font-family: "Kalam", cursive; font-size: 23px; line-height: 1; }
 .control-connection { min-height: 32px; margin: 9px 0; padding: 5px 8px; display: flex; align-items: center; gap: 6px; color: #6f4930; border: 2px dashed #a97a42; border-radius: 13px 8px 12px 9px / 8px 13px 7px 12px; background: rgba(255, 255, 255, 0.62); font-size: 12px; line-height: 1.1; }
 .control-connection.is-online { color: #1f7040; border-color: #368b55; background: #edf9ef; }
-.control-brain-stage { position: relative; height: 245px; overflow: hidden; border: 2px solid var(--ink); border-radius: 18px 10px 16px 12px / 11px 18px 9px 16px; background: #0b1418; box-shadow: inset 0 0 30px rgba(87, 210, 188, 0.08); }
+/* The card now sits in a half-height row rather than a full-height column, so
+   the brain stage takes whatever is left after the title, the status line and
+   the STOP footer, instead of a fixed height that pushed them out of the card.
+   Sizing it from the row (flex) rather than from the viewport (vh) is exact:
+   the card's own padding and its siblings' real heights are already accounted
+   for by the time the stage is measured. */
+.control-brain-stage { position: relative; flex: 1 1 auto; min-height: 96px; overflow: hidden; border: 2px solid var(--ink); border-radius: 18px 10px 16px 12px / 11px 18px 9px 16px; background: #0b1418; box-shadow: inset 0 0 30px rgba(87, 210, 188, 0.08); }
 .control-brain-stage .brain-viewport { position: absolute; inset: 0; }
 .control-brain-stage .brain-viewport canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
 .control-brain-stage .brain-viewport canvas:active { cursor: grabbing; }
@@ -341,7 +363,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
   .control-header { top: 12px; left: 12px; right: 12px; }
   .control-header .brand { height: 50px; box-shadow: 3px 3px 0 var(--ink); }
   .control-home { min-height: 42px; padding: 7px 12px; box-shadow: 3px 3px 0 var(--ink); font-size: 15px; }
-  .cockpit-layout { height: auto; min-height: 0; grid-template-columns: 1fr; gap: 28px; }
+  .cockpit-layout { height: auto; min-height: 0; grid-template-columns: 1fr; grid-template-rows: auto auto; gap: 28px; }
   .cockpit-vision { display: block; }
   .camera-sketch-card { height: 540px; padding: 10px; box-shadow: 6px 6px 0 var(--ink); }
   .mobile-joystick { position: absolute; z-index: 8; right: 25px; bottom: 27px; width: 126px; height: 126px; display: grid; place-items: center; color: rgba(255,255,255,.68); border: 2px solid rgba(255,255,255,.78); border-radius: 50%; background: rgba(13,18,21,.42); box-shadow: 0 4px 18px rgba(0,0,0,.28), inset 0 0 0 9px rgba(255,255,255,.06); backdrop-filter: blur(5px); touch-action: none; user-select: none; }
@@ -355,12 +377,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
   .camera-grid { grid-template-columns: 1fr; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 3px; }
   .camera-feed:first-child { border-radius: 20px 7px 4px 4px / 12px 18px 4px 4px; }
   .camera-feed:last-child { border-radius: 4px 4px 17px 8px / 4px 4px 9px 16px; }
-  .cockpit-sidebar { padding-top: 0; grid-template-rows: auto auto; gap: 28px; }
+  .cockpit-sidebar { padding-top: 0; grid-template-columns: 1fr; grid-template-rows: auto auto; gap: 28px; }
   .lidar-sketch-card { height: 540px; width: min(100%, 520px); justify-self: center; }
   .lidar-panel { min-height: 0; }
   .lidar-plot { width: 100%; justify-self: center; }
   .control-card { width: min(100%, 520px); justify-self: center; padding: 22px 18px 19px; }
-  .control-brain-stage { height: 320px; }
+  .control-brain-stage { flex: 0 0 auto; height: 320px; }
   .lidar-plot figcaption { flex-wrap: wrap; }
   .drive-key, .drive-stop { min-height: 58px; }
 

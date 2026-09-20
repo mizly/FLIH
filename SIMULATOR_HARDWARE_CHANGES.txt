@@ -1,0 +1,353 @@
+SIMULATOR CHANGES NEEDED TO MATCH THE PHYSICAL ROBOT
+=====================================================
+
+Scope
+-----
+This is only the physical sim-to-hardware alignment list. It does not cover model
+loading, PyTorch installation, the live inference loop, goal management, logging,
+or motor safety software.
+
+
+1. CAMERAS
+----------
+
+1.1 Replace the nominal camera intrinsics with measurements from both physical
+    camera modules.
+
+    Measure independently for sensor 1 (left) and sensor 0 (right):
+    - Horizontal and vertical focal length.
+    - Principal point.
+    - Radial and tangential lens distortion.
+    - Usable horizontal and vertical field of view.
+
+    Current simulator assumption:
+    - Ideal pinhole camera.
+    - 69.47 degrees horizontal by 42.61 degrees vertical.
+    - No distortion.
+    - Principal point exactly at image centre.
+
+    Current nominal physical-lens estimate:
+    - Approximately 62.19 degrees horizontal by 48.74 degrees vertical.
+    - Only about 87 percent of the simulator's horizontal view is physically
+      covered. The current rectification therefore creates black/missing regions
+      of approximately 3.64 degrees on each horizontal side.
+
+    After calibration, either change the simulated camera FOV to the measured FOV
+    and retrain, or retain the existing simulated FOV and simulate the same black
+    rectification borders seen on the robot.
+
+1.2 Replace the drawing-based camera mounts with measured chassis extrinsics.
+
+    Measure for each camera:
+    - Position relative to the robot centre: x, y, and z.
+    - Outward yaw.
+    - Downward pitch.
+    - Roll.
+    - Left-to-right baseline and optical-axis convergence.
+
+    Current simulator assumption:
+    - Left centre:  (0.103,  0.035, 0.175) m.
+    - Right centre: (0.103, -0.035, 0.175) m.
+    - 29.73 degrees outward yaw per camera.
+    - 5 degrees downward pitch.
+    - Zero roll.
+
+    Stereo calibration alone is insufficient because it does not locate the camera
+    pair relative to the chassis or ground.
+
+1.3 Match the physical camera acquisition timing.
+
+    Current simulator/training assumption:
+    - A new camera image every 20 ms (50 Hz policy/control step).
+
+    Physical camera mode:
+    - 1640x1232 full-array capture at 30 Hz.
+
+    The simulator should eventually reproduce 30 Hz camera updates held between
+    50 Hz policy steps, including real capture latency and jitter. This matters to
+    the learned L1/L2/L3 temporal filters.
+
+1.4 Match the physical image pipeline and camera imperfections.
+
+    Add measured or representative:
+    - Exposure and automatic-exposure changes.
+    - White-balance and colour-response differences between the two modules.
+    - Sensor noise and compression-free capture characteristics.
+    - Motion blur.
+    - Rolling-shutter effects.
+    - Focus variation and lens vignetting.
+    - Dropped, delayed, repeated, and unsynchronised left/right frames.
+
+    The simulated images are RGB. Physical OpenCV frames are BGR; the live adapter
+    must convert them, while simulator training data should reproduce the resulting
+    RGB appearance.
+
+1.5 Preserve the confirmed physical eye assignment in every simulation/deployment
+    comparison:
+    - CSI sensor 1 is the left camera.
+    - CSI sensor 0 is the right camera.
+
+
+2. LIDAR
+--------
+
+2.1 Replace the nominal LiDAR pose with a measured pose.
+
+    Measure:
+    - x, y, and scan-plane height relative to the robot centre.
+    - Mount yaw relative to the robot's true driving-forward direction.
+    - Roll and pitch/optical tilt.
+
+    Current simulator assumption:
+    - Centre: (0.0, 0.0, 0.210) m.
+    - Perfectly level scan plane.
+    - Zero angle is robot-forward.
+
+    The physical driver currently uses a measured device-zero offset of 270 degrees.
+    Recheck this after any scanner movement and ensure the simulator and physical
+    robot use the same definition of forward.
+
+2.2 Match the measured scan rate and point density.
+
+    Current simulator assumption:
+    - 6 Hz.
+    - 4000 samples/second.
+    - 667 uniformly spaced rays per revolution.
+
+    Physical scanner:
+    - Operates in the 6-12 Hz range.
+    - The vendor configuration may run at 10 Hz, producing roughly 400 points per
+      revolution instead of 667.
+    - Samples are not perfectly uniformly spaced.
+
+    Measure the actual steady scan rate. Configure the scanner to 6 Hz or change the
+    simulator to the measured rate and retrain.
+
+2.3 Simulate a rolling revolution instead of an instantaneous scan.
+
+    A 6 Hz physical revolution spans about 167 ms. At 0.4 m/s the robot can move
+    roughly 6.7 cm during one scan. Simulate per-ray acquisition times, robot motion
+    during the turn, completion latency, and holding the last complete scan between
+    updates.
+
+2.4 Replace ideal ranges with measured sensor behavior.
+
+    Add or calibrate:
+    - Range bias and random noise versus distance.
+    - Minimum and effective maximum range.
+    - Lower effective range on dark/low-reflectivity material.
+    - Missing returns.
+    - Sunlight interference.
+    - Glass/reflective-surface failures.
+    - Thin-object misses.
+    - Packet loss and incomplete revolutions.
+
+    Current simulation treats missing/out-of-range returns as 12 m and does not model
+    reflectivity, flags, or uncertainty.
+
+2.5 Model the real 2D scan plane and robot self-occlusion.
+
+    Confirm which chassis parts, camera mounts, cables, or deck edges intersect the
+    physical scan plane. The simulator currently excludes all robot geometry from
+    LiDAR rays. Include any consistent physical self-returns rather than filtering
+    them only on hardware.
+
+
+3. CHASSIS AND COLLISION GEOMETRY
+---------------------------------
+
+3.1 Replace the provisional chassis body with measured geometry.
+
+    Current simulator assumption:
+    - Box half-extents: 145 x 85 x 30 mm.
+    - Lumped chassis mass: 2 kg.
+
+    Measure/model:
+    - Full external footprint, including bumpers and protruding hardware.
+    - Deck and underside clearance.
+    - Caster/support-wheel geometry if present.
+    - Battery, Jetson, motor-board, and sensor masses.
+    - Total mass.
+    - Centre of mass.
+    - Inertia tensor or a reasonable distributed-mass approximation.
+
+3.2 Verify wheel locations and dimensions on the assembled robot.
+
+    Current simulator values:
+    - Track: 216 mm.
+    - Wheelbase: 248 mm.
+    - Tire diameter: 67.50 mm.
+    - Tread width: 26.50 mm.
+
+    Measure loaded rolling radius, not only unloaded tire diameter. Check whether tire
+    deformation changes the effective radius under the robot's weight.
+
+3.3 Use the robot's true driving-forward end as the simulator +x direction.
+
+    The physical chassis labels are misleading: the end labelled "front" is not the
+    direction confirmed as forward by the motor wiring. Camera pose, LiDAR zero,
+    collision angle, wheel side, and simulated +x must all refer to the same physical
+    direction.
+
+3.4 Match actual contact sensing.
+
+    The simulator currently provides a perfect collision flag, contact point, and
+    contact angle. The current physical robot has no equivalent contact sensor in the
+    inspected hardware path.
+
+    For the first MVP, either:
+    - Disable simulated tactile/contact input during matching training, or
+    - Keep physical policy input permanently at collision=false and angle=0.
+
+    If bump switches are later added, reproduce their placement, activation threshold,
+    blind spots, debounce, and left/right/front angular convention in simulation.
+
+
+4. WHEELS, TIRES, AND SKID-STEER MOTION
+---------------------------------------
+
+4.1 Measure and replace the ideal tire-ground parameters.
+
+    Calibrate on the actual demo surface:
+    - Longitudinal traction.
+    - Lateral scrub/slip during skid steering.
+    - Rolling resistance.
+    - Static friction and breakaway behavior.
+    - Left/right differences.
+    - Tire compliance.
+    - Behavior on seams, cables, thresholds, and uneven flooring.
+
+    The current MuJoCo friction values are provisional and are not derived from tests.
+
+4.2 Measure the real relationship between left/right wheel commands and chassis
+    linear/angular velocity.
+
+    Record straight runs and in-place turns at several positive and negative speeds.
+    Fit the effective track width, speed scale, turn scale, and slip behavior. The
+    geometric 216 mm track alone will not predict skid-steer yaw accurately.
+
+4.3 Verify per-wheel direction and side mapping against the simulator.
+
+    Confirmed physical board mapping:
+    - M1: back right wheel, treated as left drive side.
+    - M2: back left wheel, treated as right drive side.
+    - M3: front right wheel, treated as left drive side.
+    - M4: front left wheel, treated as right drive side.
+    - Motor polarity signs: 1, -1, -1, 1.
+
+    The simulator abstracts this into left/right sides, so the physical command adapter
+    must preserve the same forward and positive-yaw convention.
+
+
+5. MOTORS, ENCODERS, AND MOTOR CONTROLLER
+-----------------------------------------
+
+5.1 Keep the confirmed motor profile and remove old assumptions from comparisons.
+
+    Physical/current intended profile:
+    - Yahboom L-type 520 motors.
+    - 12 V.
+    - 40:1 reduction.
+    - 11 encoder lines.
+    - x4 quadrature decoding.
+    - 1760 counts per wheel revolution.
+    - 67.5 mm configured wheel diameter.
+
+    Some legacy hardware examples still configure 30:1 and 67.0 mm. Do not use those
+    values to tune the simulator.
+
+5.2 Replace the ideal MuJoCo velocity actuators with measured motor/controller
+    dynamics.
+
+    Measure/model:
+    - Command units and actual wheel speed.
+    - Closed-loop speed-controller response time.
+    - Dead zone and minimum sustainable speed.
+    - Acceleration and deceleration limits.
+    - Braking behavior at a zero speed command.
+    - Forward/reverse asymmetry.
+    - Command latency and jitter through Jetson -> USB -> Pico -> I2C -> motor board.
+    - Saturation under load.
+    - Torque-speed curve.
+    - Motor/wheel inertia and gearbox backlash.
+
+    Current simulator actuator assumptions:
+    - Ideal velocity servo with provisional gain/damping/inertia.
+    - Maximum wheel speed 31.416 rad/s.
+    - Rated continuous torque limit 0.431493 N m.
+
+5.3 Model electrical effects that change motion during a demo.
+
+    Measure or approximate:
+    - Battery voltage at rest and under load.
+    - Voltage sag during starts and turns.
+    - Differences as the battery discharges.
+    - Current limiting and thermal derating.
+
+5.4 Validate encoder behavior if it is used by the goal/localization system.
+
+    Include:
+    - Correct sign per wheel.
+    - Quantization at 1760 counts/revolution.
+    - Sampling/update rate.
+    - Counter reset/wrap behavior.
+    - Missed counts and wheel slip.
+
+    Encoders do not measure slip-corrected chassis motion.
+
+
+6. PHYSICAL UPDATE RATES AND LATENCIES TO REPRODUCE
+---------------------------------------------------
+
+The simulator should ultimately reproduce the complete hardware timing chain:
+
+    - Policy/RNN target tick: 50 Hz / 20 ms.
+    - Cameras: 30 Hz, with repeated frames between updates.
+    - LiDAR: measured 6-12 Hz, with one rolling revolution per update.
+    - Goal manager: its measured update rate, latency, and dropout behavior.
+    - Motor command transport: measured latency and jitter.
+    - Encoder/odometry: measured update rate and delay, if used.
+
+Sensor values should be sample-and-held and timestamped independently. Do not update
+all simulated sensors synchronously at the 50 Hz policy rate when the real devices do
+not behave that way.
+
+
+7. PHYSICAL DEMO ENVIRONMENT
+----------------------------
+
+For the quickest useful sim-to-real improvement, make one simulator scene match the
+actual hackathon demo area:
+
+    - Floor material and traction.
+    - Lighting level and direction.
+    - Arena/wall dimensions.
+    - Sizes, heights, shapes, colours, and materials of demo obstacles.
+    - Objects that the 210 mm LiDAR plane will miss.
+    - Whether a visible physical goal marker exists.
+
+The current simulator primarily uses fixed cylindrical obstacles and a visible white
+goal sphere. If the real goal is managed only by a separate system, remove or hide the
+simulated goal sphere in the matching scene so the camera policy does not depend on a
+visual object that does not exist on hardware.
+
+
+MVP PRIORITY ORDER
+------------------
+
+Before interpreting live shadow-loop behavior:
+
+1. Confirm the robot's true forward direction across cameras, LiDAR, and wheels.
+2. Calibrate or at least visually verify both camera poses and FOVs.
+3. Recheck LiDAR scale, zero angle, height, tilt, and actual scan frequency.
+4. Reproduce 30 Hz camera sample-and-hold and the measured LiDAR rate in simulation.
+5. Decide that physical collision input is zero for the MVP and test the model under
+   that same condition in simulation.
+6. Hide the simulated visual goal if the physical demo has no matching goal marker.
+
+After the first shadow loop works:
+
+7. Measure drivetrain speed/yaw response and effective skid-steer track width.
+8. Measure mass, centre of mass, tire friction/slip, dead zone, and motor latency.
+9. Add realistic camera/LiDAR noise, dropouts, and rolling acquisition.
+10. Update training or fine-tune using the measured hardware model.
